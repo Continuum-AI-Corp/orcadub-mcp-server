@@ -18,6 +18,10 @@ Use GitHub's private vulnerability reporting on this repository
   them by design; a bypass is in scope.
 - The npm launcher verifies downloaded binaries against the release
   `checksums.txt` (SHA-256). Integrity bypasses are in scope.
+- Release artifacts carry GitHub Artifact Attestations (SLSA build
+  provenance): `gh attestation verify <file> -R Continuum-AI-Corp/orcadub-mcp-server`.
+  CI/release workflows pin every action to a commit SHA; provenance or
+  pipeline-integrity bypasses are in scope.
 
 ## Supported versions
 
