@@ -46,11 +46,55 @@ codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp
 
 Any host that launches stdio MCP servers works with the same shape: command `npx`, args `["-y", "orcadub-mcp"]`, env `ORCADUB_API_KEY`. Ready-to-copy configuration files for Claude Code, Codex, Cursor and Windsurf live in [`examples/`](examples/).
 
-### From source / prebuilt binaries
+### Docker
+
+Images are published to GHCR for linux/amd64 and linux/arm64:
+
+```bash
+docker pull ghcr.io/continuum-ai-corp/orcadub-mcp:latest
+claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- \
+  docker run --rm -i -e ORCADUB_API_KEY -v "$PWD:$PWD" -w "$PWD" \
+  ghcr.io/continuum-ai-corp/orcadub-mcp:latest
+```
+
+Or as host JSON config:
+
+```json
+{
+  "mcpServers": {
+    "orcadub": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "-e", "ORCADUB_API_KEY",
+               "-v", "/path/to/videos:/work", "-w", "/work",
+               "ghcr.io/continuum-ai-corp/orcadub-mcp:latest"],
+      "env": { "ORCADUB_API_KEY": "sk-orca-..." }
+    }
+  }
+}
+```
+
+Note: `dub_upload` and `dub_download` read/write local paths, so mount the
+directory you upload from / download to (the `-v` flag) — paths you pass to
+the tools must be valid inside the container.
+
+### Prebuilt binaries
+
+Download the binary for your platform from the
+[releases page](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases)
+(verify with `checksums.txt`), then register it directly:
+
+```bash
+# example: Linux amd64 via gh CLI
+gh release download v0.1.0 -R Continuum-AI-Corp/orcadub-mcp-server \
+  -p 'orcadub-mcp_*_linux_amd64' -O ~/bin/orcadub-mcp && chmod +x ~/bin/orcadub-mcp
+claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- ~/bin/orcadub-mcp
+```
+
+### From source
 
 ```bash
 git clone https://github.com/Continuum-AI-Corp/orcadub-mcp-server && cd orcadub-mcp-server && make build
-# or grab a prebuilt binary from https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases
+# binary lands in bin/orcadub-mcp
 ```
 
 ## Configuration

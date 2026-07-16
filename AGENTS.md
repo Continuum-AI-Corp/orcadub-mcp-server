@@ -21,7 +21,8 @@ is synced here manually. Keep the two in behavioural lockstep.
 cmd/                   # entrypoint; serverVersion stamped via goreleaser ldflags
 internal/              # HTTP client (package dub), MCP tool layer, vendored wire types, tests
 npm/                   # npx launcher: postinstall downloads the platform binary
-.goreleaser.yaml       # 6-platform release (bare binaries + tar.gz/zip)
+.goreleaser.yaml       # 6-platform release (bare binaries + tar.gz/zip + ghcr.io docker images)
+Dockerfile             # standalone build; Dockerfile.goreleaser is used at release time
 .github/workflows/     # ci.yml (fmt/vet/build/test/goreleaser check), release.yml (tag → release + npm publish)
 server.json            # MCP Registry manifest
 ```

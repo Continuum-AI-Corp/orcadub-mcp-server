@@ -56,7 +56,7 @@ func TestDubCreateToolBoolKnobs(t *testing.T) {
 
 func TestDubGetTool(t *testing.T) {
 	c := testClient(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"id":"job-1","status":"completed","progress":100,"output_url":"https://cos/x.mp4"}`))
+		_, _ = w.Write([]byte(`{"id":"job-1","status":"completed","progress":100,"job_id":"uuid-9","output_url":"https://cos/x.mp4"}`))
 	})
 	tl := &toolLayer{client: c}
 	res, _, err := tl.dubGet(context.Background(), nil, GetInput{VideoID: "job-1"})
@@ -64,7 +64,11 @@ func TestDubGetTool(t *testing.T) {
 		t.Fatalf("dubGet: %v", err)
 	}
 	text := res.Content[0].(*mcp.TextContent).Text
-	if !strings.Contains(text, "completed") || !strings.Contains(text, "output_url") {
+	if !strings.Contains(text, "completed") || !strings.Contains(text, "content_url") {
 		t.Errorf("result text = %s", text)
+	}
+	// presigned URLs must never reach tool output
+	if strings.Contains(text, "cos/x.mp4") {
+		t.Errorf("presigned output_url leaked into tool output: %s", text)
 	}
 }

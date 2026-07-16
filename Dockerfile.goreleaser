@@ -1,0 +1,5 @@
+# Used by goreleaser at release time: the prebuilt platform binary is copied
+# into the build context, so no Go toolchain is needed here.
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY orcadub-mcp /usr/local/bin/orcadub-mcp
+ENTRYPOINT ["/usr/local/bin/orcadub-mcp"]

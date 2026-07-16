@@ -247,6 +247,11 @@ func (c *Client) GetVideo(ctx context.Context, id string) (GatewayVideo, error) 
 	if err := c.doJSON(ctx, http.MethodGet, "/v1/videos/"+url.PathEscape(id), nil, &v); err != nil {
 		return v, err
 	}
+	// Invariant: presigned COS URLs are bearer-token-free and unrevocable —
+	// never surface them even if the gateway starts passing one through.
+	// content_url (Bearer-authenticated, re-signed per request) is the only
+	// delivery address we expose.
+	v.OutputURL = ""
 	if v.Status == "completed" && v.JobID != "" {
 		v.ContentURL = c.originURL + "/v1/videos/" + url.PathEscape(v.JobID) + "/content"
 	}
@@ -259,6 +264,8 @@ func (c *Client) CreateVideo(ctx context.Context, req *CreateVideoRequest) (Vide
 	req.Model = dubModel
 	var v Video
 	err := c.doJSON(ctx, http.MethodPost, "/v1/videos", req, &v)
+	// Same invariant as GetVideo: no presigned URLs in tool output.
+	v.OutputURL = ""
 	return v, err
 }
 
@@ -284,6 +291,13 @@ type createUploadRequest struct {
 // under directUploadLimit go through single-request POST /v1/files; larger
 // files walk the OpenAI Uploads chain (create → parts → complete).
 func (c *Client) UploadFile(ctx context.Context, path, purpose string) (FileObject, error) {
+	// Auth gate FIRST: unauthorized calls must return the sign-up redirect
+	// before any local file access, and before uploadDirect spawns its
+	// io.Pipe writer goroutine (which would block forever if do() rejects
+	// the request without ever reading the pipe).
+	if err := c.ensureAuth(); err != nil {
+		return FileObject{}, err
+	}
 	if purpose == "" {
 		purpose = "user_data"
 	}
@@ -449,15 +463,27 @@ func (c *Client) DownloadContent(ctx context.Context, id, dest string) (int64, e
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return 0, apiError(resp.StatusCode, raw)
 	}
-	out, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if err != nil {
-		return 0, fmt.Errorf("create %s: %w", dest, err)
+	// Refuse to overwrite, then stream to a temp file in the same directory
+	// and rename atomically — an interrupted download must not leave a
+	// partial MP4 squatting on dest (which O_EXCL would then refuse forever).
+	if _, err := os.Lstat(dest); err == nil {
+		return 0, fmt.Errorf("create %s: file already exists", dest)
+	} else if !os.IsNotExist(err) {
+		return 0, fmt.Errorf("stat %s: %w", dest, err)
 	}
-	n, cerr := io.Copy(out, resp.Body)
-	if err := out.Close(); cerr == nil {
+	tmp, err := os.CreateTemp(filepath.Dir(dest), filepath.Base(dest)+".partial-*")
+	if err != nil {
+		return 0, fmt.Errorf("create temp for %s: %w", dest, err)
+	}
+	n, cerr := io.Copy(tmp, resp.Body)
+	if err := tmp.Close(); cerr == nil {
 		cerr = err
 	}
+	if cerr == nil {
+		cerr = os.Rename(tmp.Name(), dest)
+	}
 	if cerr != nil {
+		_ = os.Remove(tmp.Name())
 		return n, fmt.Errorf("write %s: %w", dest, cerr)
 	}
 	return n, nil

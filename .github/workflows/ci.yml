@@ -25,6 +25,11 @@ jobs:
         run: go build ./...
       - name: test
         run: go test ./... -count=1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm launcher syntax check
+        run: node --check npm/install.js && node --check npm/bin/run.js
       - name: goreleaser config check
         uses: goreleaser/goreleaser-action@v6
         with:

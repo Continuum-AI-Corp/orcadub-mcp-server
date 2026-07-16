@@ -53,8 +53,43 @@ func TestUnauthorizedCallsRedirectToConsole(t *testing.T) {
 	if _, err := c.DownloadContent(ctx, "job-1", filepath.Join(t.TempDir(), "x.mp4")); err == nil || !strings.Contains(err.Error(), "console") {
 		t.Fatalf("DownloadContent err = %v, want console redirect", err)
 	}
+	// UploadFile must gate on auth BEFORE touching the local path: a
+	// nonexistent file still yields the sign-up redirect, not an open error.
+	if _, err := c.UploadFile(ctx, "/nonexistent/video.mp4", ""); err == nil || !strings.Contains(err.Error(), "console") {
+		t.Fatalf("UploadFile err = %v, want console redirect", err)
+	}
 	if hit {
 		t.Error("unauthorized calls must not reach the gateway")
+	}
+}
+
+// An interrupted download must not leave a partial file at dest — otherwise
+// the overwrite refusal would block every retry.
+func TestDownloadContentNoPartialOnFailure(t *testing.T) {
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/videos/job-1":
+			_, _ = w.Write([]byte(`{"id":"job-1","object":"video","status":"completed","progress":100,"job_id":"uuid-9"}`))
+		case "/v1/videos/uuid-9/content":
+			// Announce more bytes than we send, then hang up mid-body.
+			w.Header().Set("Content-Length", "4096")
+			_, _ = w.Write([]byte("partial"))
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+			panic(http.ErrAbortHandler)
+		}
+	})
+	dest := filepath.Join(t.TempDir(), "out.mp4")
+	if _, err := c.DownloadContent(context.Background(), "job-1", dest); err == nil {
+		t.Fatal("want error on truncated download")
+	}
+	if _, err := os.Stat(dest); !os.IsNotExist(err) {
+		t.Errorf("dest must not exist after failed download, stat err = %v", err)
+	}
+	leftovers, _ := filepath.Glob(filepath.Join(filepath.Dir(dest), "*partial*"))
+	if len(leftovers) != 0 {
+		t.Errorf("temp files left behind: %v", leftovers)
 	}
 }
 
@@ -139,8 +174,12 @@ func TestGetVideo(t *testing.T) {
 		_, _ = w.Write([]byte(`{"id":"job-1","object":"video","status":"completed","progress":100,"job_id":"uuid-9","output_url":"https://cos/x.mp4"}`))
 	})
 	v, err := c.GetVideo(context.Background(), "job-1")
-	if err != nil || v.Status != "completed" || v.OutputURL != "https://cos/x.mp4" {
+	if err != nil || v.Status != "completed" {
 		t.Fatalf("GetVideo = %+v, %v", v, err)
+	}
+	// Invariant: the presigned output_url from the wire must NEVER surface.
+	if v.OutputURL != "" {
+		t.Errorf("OutputURL = %q, must be blanked", v.OutputURL)
 	}
 	// completed → content_url derives from the ORIGIN route keyed by the
 	// underlying job_id (Bearer-authenticated, freshly signed per request)

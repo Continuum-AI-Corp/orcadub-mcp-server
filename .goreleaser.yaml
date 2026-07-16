@@ -29,6 +29,42 @@ archives:
         formats: [zip]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
+dockers:
+  - ids: [orcadub-mcp]
+    goos: linux
+    goarch: amd64
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    image_templates:
+      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-amd64
+    build_flag_templates:
+      - --platform=linux/amd64
+      - --label=org.opencontainers.image.source=https://github.com/Continuum-AI-Corp/orcadub-mcp-server
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.licenses=MIT
+  - ids: [orcadub-mcp]
+    goos: linux
+    goarch: arm64
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    image_templates:
+      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-arm64
+    build_flag_templates:
+      - --platform=linux/arm64
+      - --label=org.opencontainers.image.source=https://github.com/Continuum-AI-Corp/orcadub-mcp-server
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.licenses=MIT
+
+docker_manifests:
+  - name_template: ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}
+    image_templates:
+      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-amd64
+      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-arm64
+  - name_template: ghcr.io/continuum-ai-corp/orcadub-mcp:latest
+    image_templates:
+      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-amd64
+      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-arm64
+
 checksum:
   name_template: checksums.txt
 
