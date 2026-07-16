@@ -1,5 +1,10 @@
 # OrcaDub MCP Server
 
+[![CI](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Continuum-AI-Corp/orcadub-mcp-server?include_prereleases)](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Continuum-AI-Corp/orcadub-mcp-server)](https://goreportcard.com/report/github.com/Continuum-AI-Corp/orcadub-mcp-server)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 An [MCP](https://modelcontextprotocol.io) server for [OrcaDub](https://orcadub.orcarouter.ai) — AI video dubbing. Give any MCP-capable agent (Claude Code, Claude Desktop, Codex CLI, Cursor, …) the ability to dub a video into another language: upload a file or pass a URL, submit a job to the `orca/dub` model through the [OrcaRouter](https://www.orcarouter.ai) gateway, poll progress, and download the finished MP4.
 
 ## Prerequisites

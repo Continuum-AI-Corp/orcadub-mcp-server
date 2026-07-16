@@ -4,7 +4,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
 
 	dub "github.com/Continuum-AI-Corp/orcadub-mcp-server/internal"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -14,6 +16,19 @@ import (
 var serverVersion = "dev"
 
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "--version", "-v", "version":
+			fmt.Println("orcadub-mcp-server " + serverVersion)
+			return
+		case "--help", "-h", "help":
+			fmt.Println("orcadub-mcp-server — MCP stdio server for OrcaDub video dubbing.")
+			fmt.Println("Runs as an MCP server over stdin/stdout; not meant to be invoked directly.")
+			fmt.Println("Configuration: ORCADUB_API_KEY environment variable (https://www.orcarouter.ai/console).")
+			fmt.Println("Docs: https://github.com/Continuum-AI-Corp/orcadub-mcp-server")
+			return
+		}
+	}
 	// A missing ORCADUB_API_KEY does not block startup: tools register and
 	// each call returns the OrcaRouter sign-up redirect until the key is set.
 	cfg := dub.LoadConfig()
