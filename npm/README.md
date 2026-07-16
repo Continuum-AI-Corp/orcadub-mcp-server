@@ -1,4 +1,4 @@
-# orcadub-mcp
+# orcadub-mcp-server
 
 MCP server for [OrcaDub](https://orcadub.orcarouter.ai) — AI video dubbing via
 [OrcaRouter](https://www.orcarouter.ai) (model `orca/dub`): upload a video or
@@ -11,7 +11,7 @@ SHA-256 against the release checksums.
 ## Usage
 
 ```bash
-claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp
+claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp-server
 ```
 
 Get an API key at https://www.orcarouter.ai/console. Full documentation,

@@ -1,5 +1,5 @@
 {
-  "name": "orcadub-mcp",
+  "name": "orcadub-mcp-server",
   "version": "0.0.0",
   "description": "MCP server for OrcaDub — AI video dubbing via OrcaRouter (model orca/dub): upload, submit, poll, download.",
   "keywords": ["mcp", "modelcontextprotocol", "orcadub", "orcarouter", "dubbing", "video", "translation"],
@@ -10,7 +10,7 @@
   },
   "license": "MIT",
   "bin": {
-    "orcadub-mcp": "bin/run.js"
+    "orcadub-mcp-server": "bin/run.js"
   },
   "files": ["bin/run.js", "install.js", "README.md"],
   "scripts": {

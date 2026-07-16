@@ -17,7 +17,7 @@ Dubbing jobs are billed per minute of source video. Without a key the server sti
 ### Claude Code
 
 ```bash
-claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp
+claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp-server
 ```
 
 ### Claude Desktop
@@ -29,7 +29,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "orcadub": {
       "command": "npx",
-      "args": ["-y", "orcadub-mcp"],
+      "args": ["-y", "orcadub-mcp-server"],
       "env": { "ORCADUB_API_KEY": "sk-orca-..." }
     }
   }
@@ -39,22 +39,22 @@ Add to `claude_desktop_config.json`:
 ### Codex CLI
 
 ```bash
-codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp
+codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp-server
 ```
 
 ### Cursor / Windsurf / other MCP hosts
 
-Any host that launches stdio MCP servers works with the same shape: command `npx`, args `["-y", "orcadub-mcp"]`, env `ORCADUB_API_KEY`. Ready-to-copy configuration files for Claude Code, Codex, Cursor and Windsurf live in [`examples/`](examples/).
+Any host that launches stdio MCP servers works with the same shape: command `npx`, args `["-y", "orcadub-mcp-server"]`, env `ORCADUB_API_KEY`. Ready-to-copy configuration files for Claude Code, Codex, Cursor and Windsurf live in [`examples/`](examples/).
 
 ### Docker
 
 Images are published to GHCR for linux/amd64 and linux/arm64:
 
 ```bash
-docker pull ghcr.io/continuum-ai-corp/orcadub-mcp:latest
+docker pull ghcr.io/continuum-ai-corp/orcadub-mcp-server:latest
 claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- \
   docker run --rm -i -e ORCADUB_API_KEY -v "$PWD:$PWD" -w "$PWD" \
-  ghcr.io/continuum-ai-corp/orcadub-mcp:latest
+  ghcr.io/continuum-ai-corp/orcadub-mcp-server:latest
 ```
 
 Or as host JSON config:
@@ -66,7 +66,7 @@ Or as host JSON config:
       "command": "docker",
       "args": ["run", "--rm", "-i", "-e", "ORCADUB_API_KEY",
                "-v", "/path/to/videos:/work", "-w", "/work",
-               "ghcr.io/continuum-ai-corp/orcadub-mcp:latest"],
+               "ghcr.io/continuum-ai-corp/orcadub-mcp-server:latest"],
       "env": { "ORCADUB_API_KEY": "sk-orca-..." }
     }
   }
@@ -86,15 +86,15 @@ Download the binary for your platform from the
 ```bash
 # example: Linux amd64 via gh CLI
 gh release download v0.1.0 -R Continuum-AI-Corp/orcadub-mcp-server \
-  -p 'orcadub-mcp_*_linux_amd64' -O ~/bin/orcadub-mcp && chmod +x ~/bin/orcadub-mcp
-claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- ~/bin/orcadub-mcp
+  -p 'orcadub-mcp-server_*_linux_amd64' -O ~/bin/orcadub-mcp-server && chmod +x ~/bin/orcadub-mcp-server
+claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- ~/bin/orcadub-mcp-server
 ```
 
 ### From source
 
 ```bash
 git clone https://github.com/Continuum-AI-Corp/orcadub-mcp-server && cd orcadub-mcp-server && make build
-# binary lands in bin/orcadub-mcp
+# binary lands in bin/orcadub-mcp-server
 ```
 
 ## Configuration
@@ -150,7 +150,7 @@ Layout: `cmd/` (entrypoint) · `internal/` (HTTP client, tool layer, wire types)
 
 1. Tag: `git tag v0.1.0 && git push origin v0.1.0`.
 2. GitHub Actions runs goreleaser: linux/darwin/windows × amd64/arm64 binaries + archives + checksums land on the Release.
-3. The `npm-publish` job stamps the tag version into `npm/package.json` and publishes `orcadub-mcp` to npm (requires the `NPM_TOKEN` repo secret).
+3. The `npm-publish` job stamps the tag version into `npm/package.json` and publishes `orcadub-mcp-server` to npm (requires the `NPM_TOKEN` repo secret).
 4. Optionally publish `server.json` to the [MCP Registry](https://registry.modelcontextprotocol.io) with `mcp-publisher publish`.
 
 ## License

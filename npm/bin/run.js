@@ -8,12 +8,12 @@ const fs = require("fs");
 const { spawn } = require("child_process");
 
 const ext = process.platform === "win32" ? ".exe" : "";
-const bin = path.join(__dirname, "..", "vendor", `orcadub-mcp${ext}`);
+const bin = path.join(__dirname, "..", "vendor", `orcadub-mcp-server${ext}`);
 
 if (!fs.existsSync(bin)) {
   console.error(
-    "orcadub-mcp: binary not found — postinstall may have failed.\n" +
-      "Reinstall with: npm rebuild orcadub-mcp (or npx -y orcadub-mcp@latest)"
+    "orcadub-mcp-server: binary not found — postinstall may have failed.\n" +
+      "Reinstall with: npm rebuild orcadub-mcp-server (or npx -y orcadub-mcp-server@latest)"
   );
   process.exit(1);
 }
@@ -24,6 +24,6 @@ child.on("exit", (code, signal) => {
   process.exit(code === null ? 1 : code);
 });
 child.on("error", (err) => {
-  console.error(`orcadub-mcp: ${err.message}`);
+  console.error(`orcadub-mcp-server: ${err.message}`);
   process.exit(1);
 });

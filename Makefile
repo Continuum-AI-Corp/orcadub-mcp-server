@@ -20,7 +20,7 @@ test:
 
 ## build: build the server binary
 build:
-	go build -o bin/orcadub-mcp ./cmd
+	go build -o bin/orcadub-mcp-server ./cmd
 
 ## check: everything CI runs
 check: fmt lint test
