@@ -1,0 +1,13 @@
+# OrcaDub MCP server — Codex CLI configuration snippet.
+# Merge into ~/.codex/config.toml, or register with one command instead:
+#
+#   codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp
+#
+# Get an API key at https://www.orcarouter.ai/console (token management page).
+
+[mcp_servers.orcadub]
+command = "npx"
+args = ["-y", "orcadub-mcp"]
+
+[mcp_servers.orcadub.env]
+ORCADUB_API_KEY = "sk-orca-REPLACE_ME"

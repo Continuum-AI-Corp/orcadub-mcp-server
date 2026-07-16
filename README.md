@@ -42,9 +42,9 @@ Add to `claude_desktop_config.json`:
 codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp
 ```
 
-### Cursor / other MCP hosts
+### Cursor / Windsurf / other MCP hosts
 
-Any host that launches stdio MCP servers works with the same shape: command `npx`, args `["-y", "orcadub-mcp"]`, env `ORCADUB_API_KEY`.
+Any host that launches stdio MCP servers works with the same shape: command `npx`, args `["-y", "orcadub-mcp"]`, env `ORCADUB_API_KEY`. Ready-to-copy configuration files for Claude Code, Codex, Cursor and Windsurf live in [`examples/`](examples/).
 
 ### From source / prebuilt binaries
 

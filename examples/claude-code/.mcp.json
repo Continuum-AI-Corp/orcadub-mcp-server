@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "orcadub": {
+      "command": "npx",
+      "args": ["-y", "orcadub-mcp"],
+      "env": {
+        "ORCADUB_API_KEY": "${ORCADUB_API_KEY:-}"
+      }
+    }
+  }
+}
