@@ -1,0 +1,64 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    # Static analysis
+    - govet
+    - staticcheck
+    - ineffassign
+    # Error handling
+    - errcheck
+    - errorlint
+    - nilerr
+    # Code quality
+    - revive
+    - gocritic
+    - gocyclo
+    - misspell
+    - unconvert
+    - predeclared
+    # Safety / correctness
+    - bodyclose
+
+  settings:
+    gocyclo:
+      min-complexity: 15
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - commentedOutCode
+
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - checkPrivateReceivers
+            - sayRepetitiveInsteadOfStutters
+        - name: var-naming
+        - name: error-return
+        - name: error-strings
+        - name: receiver-naming
+        - name: increment-decrement
+        - name: range
+        - name: context-as-argument
+          arguments:
+            - allowTypesBefore: "*testing.T"
+        - name: context-keys-type
+        - name: unused-parameter
+
+    staticcheck:
+      checks:
+        - "all"
+        - "-SA1019" # allow deprecated API usage during migration
+
+formatters:
+  enable:
+    - gofmt
+    - gci

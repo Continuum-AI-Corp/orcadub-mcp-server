@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 只处理暂存区中的 .go 文件
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+
+if [ -z "$STAGED_GO_FILES" ]; then
+  exit 0
+fi
+
+# ── 依赖检查 ──────────────────────────────────────────────────────────────────
+check_tool() {
+  if ! command -v "$1" &>/dev/null; then
+    echo "[pre-commit] '$1' 未安装，请执行: $2"
+    exit 1
+  fi
+}
+
+check_tool goimports "go install golang.org/x/tools/cmd/goimports@latest"
+check_tool golangci-lint "https://golangci-lint.run/usage/install/"
+
+# ── 格式化 ────────────────────────────────────────────────────────────────────
+echo "[pre-commit] 格式化 Go 文件..."
+
+# 确定项目根目录（go.mod 所在位置）
+ROOT=$(git rev-parse --show-toplevel)
+
+for FILE in $STAGED_GO_FILES; do
+  ABS="$ROOT/$FILE"
+  [ -f "$ABS" ] || continue
+  goimports -w "$ABS"
+  gofmt -w "$ABS"
+  git add "$FILE"
+done
+
+# ── Lint（带自动修复）────────────────────────────────────────────────────────
+echo "[pre-commit] 运行 golangci-lint --fix..."
+
+# 在包含 go.mod 的仓库根目录中运行
+(
+  cd "$ROOT"
+  golangci-lint run --fix ./... 2>&1
+)
+
+# 重新暂存 lint 修复后的文件
+for FILE in $STAGED_GO_FILES; do
+  git add "$FILE" 2>/dev/null || true
+done
+
+echo "[pre-commit] 检查通过 ✓"

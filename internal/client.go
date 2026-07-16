@@ -1,5 +1,5 @@
-// Package main implements orcadub-mcp, an MCP stdio server that exposes the
-// OrcaDub dubbing service as MCP tools. ALL HTTP requests go through the
+// Package dub implements the OrcaDub MCP server internals: the HTTP client
+// and the MCP tool layer. ALL submit/query requests go through the
 // OrcaRouter gateway (https://api.orcarouter.ai) — the officially documented
 // integration surface (see /api-docs): the gateway routes requests to the
 // orca/dub model by the `model` field, wraps billing, and scopes task ids.
