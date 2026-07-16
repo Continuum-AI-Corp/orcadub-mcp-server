@@ -104,7 +104,7 @@ Layout: `cmd/` (entrypoint) · `internal/` (HTTP client, tool layer, wire types)
 
 ## Releasing
 
-1. Tag: `git tag v0.2.0 && git push origin v0.2.0`.
+1. Tag: `git tag v0.1.0 && git push origin v0.1.0`.
 2. GitHub Actions runs goreleaser: linux/darwin/windows × amd64/arm64 binaries + archives + checksums land on the Release.
 3. The `npm-publish` job stamps the tag version into `npm/package.json` and publishes `orcadub-mcp` to npm (requires the `NPM_TOKEN` repo secret).
 4. Optionally publish `server.json` to the [MCP Registry](https://registry.modelcontextprotocol.io) with `mcp-publisher publish`.

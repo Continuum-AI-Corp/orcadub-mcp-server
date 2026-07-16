@@ -124,11 +124,9 @@ perf/<optimization>         # Performance improvements
 
 ### Language Convention
 
-- **All commit messages (subject AND body), PR titles, and PR bodies must be
-  written entirely in English** — keeps the GitHub history consistent and
-  searchable.
-- In-code comments may stay in Chinese (中文注释可用) where they clarify
-  server-side conventions.
+- **Everything in this repository is written in English**: commit messages
+  (subject AND body), PR titles and bodies, in-code comments, docs, and
+  script output. This is a public distribution repo — no Chinese comments.
 
 ### PR Convention
 
