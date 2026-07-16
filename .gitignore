@@ -1,5 +1,6 @@
 # build artifacts
 /orcadub-mcp-server
+/bin/
 /dist/
 npm/vendor/
 npm/node_modules/
