@@ -1,0 +1,57 @@
+name: release
+
+# Push a semver tag to cut a release:
+#   git tag v0.2.0 && git push origin v0.2.0
+# goreleaser cross-compiles linux/darwin/windows × amd64/arm64, uploads the
+# bare binaries (npm launcher downloads these) + tar.gz/zip archives +
+# checksums to the GitHub Release.
+#
+# npm publish runs afterwards when the NPM_TOKEN secret is configured;
+# it stamps the tag version into npm/package.json before publishing.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  npm-publish:
+    needs: goreleaser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: stamp version from tag
+        working-directory: npm
+        run: npm version --no-git-tag-version "${GITHUB_REF_NAME#v}"
+      - name: publish
+        working-directory: npm
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN secret not set — skipping npm publish"
+            exit 0
+          fi
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

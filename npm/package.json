@@ -1,0 +1,24 @@
+{
+  "name": "orcadub-mcp",
+  "version": "0.0.0",
+  "description": "MCP server for OrcaDub — AI video dubbing via OrcaRouter (model orca/dub): upload, submit, poll, download.",
+  "keywords": ["mcp", "modelcontextprotocol", "orcadub", "orcarouter", "dubbing", "video", "translation"],
+  "homepage": "https://github.com/Continuum-AI-Corp/orcadub-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Continuum-AI-Corp/orcadub-mcp.git"
+  },
+  "license": "MIT",
+  "bin": {
+    "orcadub-mcp": "bin/run.js"
+  },
+  "files": ["bin/run.js", "install.js", "README.md"],
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": ["darwin", "linux", "win32"],
+  "cpu": ["x64", "arm64"]
+}

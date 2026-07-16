@@ -1,0 +1,42 @@
+# goreleaser v2 config — six-platform release of the orcadub-mcp binary.
+# Tag push (v*) triggers .github/workflows/release.yml which runs this.
+version: 2
+
+project_name: orcadub-mcp
+
+builds:
+  - id: orcadub-mcp
+    main: ./cmd/orcadub-mcp
+    binary: orcadub-mcp
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.serverVersion={{ .Version }}
+
+archives:
+  # Bare binaries — what the npm launcher's postinstall downloads
+  # (no tar extraction needed in Node).
+  - id: raw
+    formats: [binary]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  # Conventional archives for humans downloading from the Releases page.
+  - id: packaged
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+
+release:
+  github:
+    owner: Continuum-AI-Corp
+    name: orcadub-mcp

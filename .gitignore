@@ -1,0 +1,10 @@
+# build artifacts
+/orcadub-mcp
+/dist/
+npm/vendor/
+npm/node_modules/
+
+# editor / os
+.DS_Store
+.vscode/
+.idea/
