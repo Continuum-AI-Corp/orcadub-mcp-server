@@ -14,7 +14,7 @@ conventions). Claude-specific notes below.
   build and call the tools directly —
 
   ```bash
-  go build -o ~/bin/dub-mcp ./cmd/dub-mcp
+  go build -o ~/bin/dub-mcp ./cmd
   claude mcp add --scope user orcadub -e ORCADUB_API_KEY=sk-orca-... -- ~/bin/dub-mcp
   ```
 

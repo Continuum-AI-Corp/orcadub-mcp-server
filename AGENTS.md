@@ -18,8 +18,8 @@ is synced here manually. Keep the two in behavioural lockstep.
 ## Layout
 
 ```
-cmd/dub-mcp/           # entrypoint; serverVersion stamped via goreleaser ldflags
-internal/dub/          # HTTP client, MCP tool layer, vendored wire types, tests
+cmd/                   # entrypoint; serverVersion stamped via goreleaser ldflags
+internal/              # HTTP client (package dub), MCP tool layer, vendored wire types, tests
 npm/                   # npx launcher: postinstall downloads the platform binary
 .goreleaser.yaml       # 6-platform release (bare binaries + tar.gz/zip)
 .github/workflows/     # ci.yml (fmt/vet/build/test/goreleaser check), release.yml (tag → release + npm publish)
@@ -53,9 +53,9 @@ server.json            # MCP Registry manifest
    Boolean knobs are `*string` "true"/"false" on the wire (server convention);
    convert via `boolStr`.
 6. **Folder names must not carry the `orcadub` brand** — directories are
-   `cmd/dub-mcp`, `internal/dub`. The brand lives on the repo, the released
+   plain `cmd/`, `internal/`. The brand lives on the repo, the released
    binary, and the npm package (`orcadub-mcp`) only.
-7. **Wire types in `internal/dub/types.go` are vendored** from
+7. **Wire types in `internal/types.go` are vendored** from
    `orca-rt-dubbing/internal/quality/openaicompat` (the source of truth,
    shared with the server). Do not invent or rename JSON fields here — sync
    from the source when the server changes.
@@ -84,7 +84,7 @@ Individual targets: `make fmt` (goimports+gofmt), `make lint`
 - Manual smoke test of the stdio surface:
 
   ```bash
-  go build -o /tmp/dub-mcp ./cmd/dub-mcp
+  go build -o /tmp/dub-mcp ./cmd
   printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' \
     | ORCADUB_API_KEY=sk-orca-... /tmp/dub-mcp
   ```
