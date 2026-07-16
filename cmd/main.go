@@ -1,4 +1,4 @@
-// Command orcadub-mcp is an MCP stdio server exposing the OrcaDub video
+// Command orcadub-mcp-server is an MCP stdio server exposing the OrcaDub video
 // dubbing service (OrcaRouter model orca/dub) as MCP tools.
 package main
 
@@ -24,6 +24,6 @@ func main() {
 	}, nil)
 	dub.RegisterTools(server, dub.NewClient(cfg))
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
-		log.Fatalf("orcadub-mcp: %v", err)
+		log.Fatalf("orcadub-mcp-server: %v", err)
 	}
 }

@@ -1,13 +1,13 @@
-# goreleaser v2 config — six-platform release of the orcadub-mcp binary.
+# goreleaser v2 config — six-platform release of the orcadub-mcp-server binary.
 # Tag push (v*) triggers .github/workflows/release.yml which runs this.
 version: 2
 
-project_name: orcadub-mcp
+project_name: orcadub-mcp-server
 
 builds:
-  - id: orcadub-mcp
+  - id: orcadub-mcp-server
     main: ./cmd
-    binary: orcadub-mcp
+    binary: orcadub-mcp-server
     env:
       - CGO_ENABLED=0
     goos: [linux, darwin, windows]
@@ -30,25 +30,25 @@ archives:
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 dockers:
-  - ids: [orcadub-mcp]
+  - ids: [orcadub-mcp-server]
     goos: linux
     goarch: amd64
     dockerfile: Dockerfile.goreleaser
     use: buildx
     image_templates:
-      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-amd64
+      - ghcr.io/continuum-ai-corp/orcadub-mcp-server:{{ .Version }}-amd64
     build_flag_templates:
       - --platform=linux/amd64
       - --label=org.opencontainers.image.source=https://github.com/Continuum-AI-Corp/orcadub-mcp-server
       - --label=org.opencontainers.image.version={{ .Version }}
       - --label=org.opencontainers.image.licenses=MIT
-  - ids: [orcadub-mcp]
+  - ids: [orcadub-mcp-server]
     goos: linux
     goarch: arm64
     dockerfile: Dockerfile.goreleaser
     use: buildx
     image_templates:
-      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-arm64
+      - ghcr.io/continuum-ai-corp/orcadub-mcp-server:{{ .Version }}-arm64
     build_flag_templates:
       - --platform=linux/arm64
       - --label=org.opencontainers.image.source=https://github.com/Continuum-AI-Corp/orcadub-mcp-server
@@ -56,14 +56,14 @@ dockers:
       - --label=org.opencontainers.image.licenses=MIT
 
 docker_manifests:
-  - name_template: ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}
+  - name_template: ghcr.io/continuum-ai-corp/orcadub-mcp-server:{{ .Version }}
     image_templates:
-      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-amd64
-      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-arm64
-  - name_template: ghcr.io/continuum-ai-corp/orcadub-mcp:latest
+      - ghcr.io/continuum-ai-corp/orcadub-mcp-server:{{ .Version }}-amd64
+      - ghcr.io/continuum-ai-corp/orcadub-mcp-server:{{ .Version }}-arm64
+  - name_template: ghcr.io/continuum-ai-corp/orcadub-mcp-server:latest
     image_templates:
-      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-amd64
-      - ghcr.io/continuum-ai-corp/orcadub-mcp:{{ .Version }}-arm64
+      - ghcr.io/continuum-ai-corp/orcadub-mcp-server:{{ .Version }}-amd64
+      - ghcr.io/continuum-ai-corp/orcadub-mcp-server:{{ .Version }}-arm64
 
 checksum:
   name_template: checksums.txt

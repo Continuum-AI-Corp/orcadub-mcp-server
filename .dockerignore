@@ -1,0 +1,17 @@
+# Keep the docker build context to what the Go build needs:
+# go.mod/go.sum, cmd/, internal/, and the Dockerfiles themselves.
+.git/
+.github/
+.githooks/
+.goreleaser.yaml
+.golangci.yml
+.gitignore
+.dockerignore
+bin/
+dist/
+npm/
+examples/
+server.json
+Makefile
+*.md
+LICENSE
