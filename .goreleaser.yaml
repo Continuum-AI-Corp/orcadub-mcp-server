@@ -6,7 +6,7 @@ project_name: orcadub-mcp
 
 builds:
   - id: orcadub-mcp
-    main: ./cmd/orcadub-mcp
+    main: ./cmd/dub-mcp
     binary: orcadub-mcp
     env:
       - CGO_ENABLED=0

@@ -49,7 +49,7 @@ Any host that launches stdio MCP servers works with the same shape: command `npx
 ### From source / prebuilt binaries
 
 ```bash
-go install github.com/Continuum-AI-Corp/orcadub-mcp/cmd/orcadub-mcp@latest
+go install github.com/Continuum-AI-Corp/orcadub-mcp/cmd/dub-mcp@latest
 # or grab a binary from https://github.com/Continuum-AI-Corp/orcadub-mcp/releases
 ```
 
@@ -100,7 +100,7 @@ go build ./...
 go test ./... -count=1
 ```
 
-Layout: `cmd/orcadub-mcp` (entrypoint) · `internal/orcadub` (HTTP client, tool layer, wire types) · `npm/` (npx launcher that downloads the platform binary from GitHub Releases) · `server.json` (MCP Registry manifest).
+Layout: `cmd/dub-mcp` (entrypoint) · `internal/dub` (HTTP client, tool layer, wire types) · `npm/` (npx launcher that downloads the platform binary from GitHub Releases) · `server.json` (MCP Registry manifest).
 
 ## Releasing
 

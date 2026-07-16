@@ -6,7 +6,7 @@
 // Direct dub-server routes (native /api/v1/dub/*, GET /v1/videos list,
 // DELETE, cancel) are NOT exposed by the gateway and therefore not offered
 // here. Wire shapes reuse internal/quality/openai
-package orcadub
+package dub
 
 import (
 	"bytes"

@@ -6,7 +6,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/Continuum-AI-Corp/orcadub-mcp/internal/orcadub"
+	"github.com/Continuum-AI-Corp/orcadub-mcp/internal/dub"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -16,13 +16,13 @@ var serverVersion = "dev"
 func main() {
 	// A missing ORCADUB_API_KEY does not block startup: tools register and
 	// each call returns the OrcaRouter sign-up redirect until the key is set.
-	cfg := orcadub.LoadConfig()
+	cfg := dub.LoadConfig()
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "orcadub",
 		Title:   "OrcaDub video dubbing",
 		Version: serverVersion,
 	}, nil)
-	orcadub.RegisterTools(server, orcadub.NewClient(cfg))
+	dub.RegisterTools(server, dub.NewClient(cfg))
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatalf("orcadub-mcp: %v", err)
 	}

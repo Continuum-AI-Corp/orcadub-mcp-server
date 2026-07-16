@@ -1,4 +1,4 @@
-package orcadub
+package dub
 
 // Wire types for the OrcaDub surface behind the OrcaRouter gateway. These
 // mirror OpenAI's Files / Uploads / Videos objects plus the dub-specific
