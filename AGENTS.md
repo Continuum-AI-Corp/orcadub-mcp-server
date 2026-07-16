@@ -78,10 +78,10 @@ Individual targets: `make fmt` (goimports+gofmt), `make lint`
 - Tests must stay hermetic — never call the real gateway from tests. The
   `Client` has `BaseURL`/`originURL` fields and `directUploadLimit` /
   `uploadPartSize` hooks specifically so httptest servers can stand in.
-- Formatting is enforced in three layers: `.githooks/pre-commit`
-  (goimports + gofmt + golangci-lint --fix + re-stage), `.githooks/pre-push`
-  (blocks unformatted/lint-failing pushes), and CI (gofmt check +
-  golangci-lint). Never commit unformatted Go code.
+- Formatting is enforced in two layers: `.githooks/pre-commit`
+  (goimports + gofmt + golangci-lint --fix + re-stage, installed via
+  `make setup`) and CI (gofmt check + golangci-lint — the authoritative
+  gate). Never commit unformatted Go code.
 - Manual smoke test of the stdio surface:
 
   ```bash
@@ -95,9 +95,12 @@ Individual targets: `make fmt` (goimports+gofmt), `make lint`
 1. Bump `version` in `server.json` if publishing to the MCP Registry.
 2. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 3. GitHub Actions: goreleaser builds linux/darwin/windows × amd64/arm64
-   (bare binaries feed the npm launcher; tar.gz/zip for humans), then the
-   `npm-publish` job stamps the tag version into `npm/package.json` and
-   publishes when the `NPM_TOKEN` secret is set.
+   (bare binaries feed the npm launcher; tar.gz/zip for humans), attests
+   the artifacts (GitHub Artifact Attestations / SLSA provenance), then
+   the `npm-publish` job stamps the tag version into `npm/package.json`
+   and publishes when the `NPM_TOKEN` secret is set. Workflow actions are
+   pinned to commit SHAs — when bumping one, update both the SHA and its
+   tag comment.
 4. `npm/package.json` stays at `0.0.0` in git — the workflow stamps it.
    `install.js` treats `0.0.0` as "dev install, skip download".
 5. The repo must be public for external users: the npm postinstall downloads
