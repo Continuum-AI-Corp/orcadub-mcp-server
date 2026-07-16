@@ -39,4 +39,4 @@ changelog:
 release:
   github:
     owner: Continuum-AI-Corp
-    name: orcadub-mcp
+    name: orcadub-mcp-server

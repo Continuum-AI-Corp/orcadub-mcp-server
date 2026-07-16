@@ -1,4 +1,4 @@
-module github.com/Continuum-AI-Corp/orcadub-mcp
+module github.com/Continuum-AI-Corp/orcadub-mcp-server
 
 go 1.25.0
 

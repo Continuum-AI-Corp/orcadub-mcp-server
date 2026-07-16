@@ -49,8 +49,8 @@ Any host that launches stdio MCP servers works with the same shape: command `npx
 ### From source / prebuilt binaries
 
 ```bash
-go install github.com/Continuum-AI-Corp/orcadub-mcp/cmd/dub-mcp@latest
-# or grab a binary from https://github.com/Continuum-AI-Corp/orcadub-mcp/releases
+go install github.com/Continuum-AI-Corp/orcadub-mcp-server/cmd/dub-mcp@latest
+# or grab a binary from https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases
 ```
 
 ## Configuration

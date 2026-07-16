@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
-  "name": "io.github.continuum-ai-corp/orcadub-mcp",
+  "name": "io.github.continuum-ai-corp/orcadub-mcp-server",
   "description": "AI video dubbing via OrcaRouter (model orca/dub): upload a video or pass a URL, submit a dubbing job, poll status, download the dubbed result.",
   "repository": {
-    "url": "https://github.com/Continuum-AI-Corp/orcadub-mcp",
+    "url": "https://github.com/Continuum-AI-Corp/orcadub-mcp-server",
     "source": "github"
   },
   "version": "0.2.0",

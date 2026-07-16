@@ -34,7 +34,7 @@ if (version === "0.0.0") {
 
 const ext = goos === "windows" ? ".exe" : "";
 const asset = `orcadub-mcp_${version}_${goos}_${goarch}${ext}`;
-const url = `https://github.com/Continuum-AI-Corp/orcadub-mcp/releases/download/v${version}/${asset}`;
+const url = `https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases/download/v${version}/${asset}`;
 const destDir = path.join(__dirname, "vendor");
 const dest = path.join(destDir, `orcadub-mcp${ext}`);
 
@@ -65,7 +65,7 @@ download(url, 5, (err) => {
     fail(
       `${err.message}\n` +
         `  expected release asset: ${url}\n` +
-        `  check https://github.com/Continuum-AI-Corp/orcadub-mcp/releases`
+        `  check https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases`
     );
   }
   console.log(`orcadub-mcp install: installed ${dest}`);

@@ -6,7 +6,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/Continuum-AI-Corp/orcadub-mcp/internal/dub"
+	"github.com/Continuum-AI-Corp/orcadub-mcp-server/internal/dub"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
