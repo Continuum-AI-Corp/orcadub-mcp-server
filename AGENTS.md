@@ -78,10 +78,10 @@ Individual targets: `make fmt` (goimports+gofmt), `make lint`
 - Tests must stay hermetic — never call the real gateway from tests. The
   `Client` has `BaseURL`/`originURL` fields and `directUploadLimit` /
   `uploadPartSize` hooks specifically so httptest servers can stand in.
-- Formatting is enforced in three layers: `.githooks/pre-commit`
-  (goimports + gofmt + golangci-lint --fix + re-stage), `.githooks/pre-push`
-  (blocks unformatted/lint-failing pushes), and CI (gofmt check +
-  golangci-lint). Never commit unformatted Go code.
+- Formatting is enforced in two layers: `.githooks/pre-commit`
+  (goimports + gofmt + golangci-lint --fix + re-stage, installed via
+  `make setup`) and CI (gofmt check + golangci-lint — the authoritative
+  gate). Never commit unformatted Go code.
 - Manual smoke test of the stdio surface:
 
   ```bash

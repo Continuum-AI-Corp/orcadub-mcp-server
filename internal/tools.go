@@ -178,11 +178,18 @@ func (t *toolLayer) dubDownload(ctx context.Context, _ *mcp.CallToolRequest, in 
 // RegisterTools wires every tool onto the server. The surface is exactly the
 // OrcaRouter gateway's documented dub lifecycle (upload → create → poll →
 // download); list/cancel/delete/native-detail are not exposed by the gateway.
+// Annotations follow the MCP spec so hosts can pick approval policies:
+// health/get are read-only; upload/create/download are additive
+// (non-destructive) and non-idempotent; everything talks to an external
+// service (open world).
 func RegisterTools(s *mcp.Server, c *Client) {
 	t := &toolLayer{client: c}
-	mcp.AddTool(s, &mcp.Tool{Name: "dub_health", Description: "Probe the OrcaRouter gateway → orca/dub route end to end (no job is created). Returns ok when the gateway is reachable and routes to the dubbing service."}, t.dubHealth)
-	mcp.AddTool(s, &mcp.Tool{Name: "dub_upload", Description: "Upload a local video file through the OrcaRouter gateway; returns a file object whose id feeds dub_create's file_id. Large files are chunked automatically (up to 8 GiB)."}, t.dubUpload)
-	mcp.AddTool(s, &mcp.Tool{Name: "dub_create", Description: "Submit a dubbing job (model orca/dub) that translates and re-voices a video from source_lang into target_lang. Source is either an uploaded file_id or a remote url (exactly one). REQUIRED fields (source_lang, target_lang, file_id/url, video_name with file_id) must be confirmed with the user — ask instead of guessing; submission is billed per minute. Returns the queued job; poll with dub_get."}, t.dubCreate)
-	mcp.AddTool(s, &mcp.Tool{Name: "dub_get", Description: "Get a dub job's status/progress (status: queued | in_progress | completed | failed). On completed the response carries content_url (Bearer-authenticated delivery address of the mp4) and job_id; on failed an error message."}, t.dubGet)
-	mcp.AddTool(s, &mcp.Tool{Name: "dub_download", Description: "Download a completed dub job's MP4 to a local path (refuses to overwrite). Delivery step: after dub_get reports completed, confirm with the user (default destination: current directory, <video_name>-<target_lang>.mp4) and then call this."}, t.dubDownload)
+	fptr := func(b bool) *bool { return &b }
+	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
+	additive := &mcp.ToolAnnotations{DestructiveHint: fptr(false)}
+	mcp.AddTool(s, &mcp.Tool{Name: "dub_health", Annotations: readOnly, Description: "Probe the OrcaRouter gateway → orca/dub route end to end (no job is created). Returns ok when the gateway is reachable and routes to the dubbing service."}, t.dubHealth)
+	mcp.AddTool(s, &mcp.Tool{Name: "dub_upload", Annotations: additive, Description: "Upload a local video file through the OrcaRouter gateway; returns a file object whose id feeds dub_create's file_id. Large files are chunked automatically (up to 8 GiB)."}, t.dubUpload)
+	mcp.AddTool(s, &mcp.Tool{Name: "dub_create", Annotations: additive, Description: "Submit a dubbing job (model orca/dub) that translates and re-voices a video from source_lang into target_lang. Source is either an uploaded file_id or a remote url (exactly one). REQUIRED fields (source_lang, target_lang, file_id/url, video_name with file_id) must be confirmed with the user — ask instead of guessing; submission is billed per minute. Returns the queued job; poll with dub_get."}, t.dubCreate)
+	mcp.AddTool(s, &mcp.Tool{Name: "dub_get", Annotations: readOnly, Description: "Get a dub job's status/progress (status: queued | in_progress | completed | failed). On completed the response carries content_url (Bearer-authenticated delivery address of the mp4) and job_id; on failed an error message."}, t.dubGet)
+	mcp.AddTool(s, &mcp.Tool{Name: "dub_download", Annotations: additive, Description: "Download a completed dub job's MP4 to a local path (refuses to overwrite). Delivery step: after dub_get reports completed, confirm with the user (default destination: current directory, <video_name>-<target_lang>.mp4) and then call this."}, t.dubDownload)
 }

@@ -30,6 +30,13 @@ jobs:
           node-version: 22
       - name: npm launcher syntax check
         run: node --check npm/install.js && node --check npm/bin/run.js
+      - name: stdio smoke test
+        run: |
+          go build -o /tmp/orcadub-mcp-server ./cmd
+          /tmp/orcadub-mcp-server --version
+          { printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}'; sleep 2; } \
+            | ORCADUB_API_KEY=sk-orca-ci-smoke timeout 10 /tmp/orcadub-mcp-server | grep -q '"serverInfo"'
+          echo "initialize handshake ok"
       - name: goreleaser config check
         uses: goreleaser/goreleaser-action@v6
         with:
