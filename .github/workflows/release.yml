@@ -79,3 +79,26 @@ jobs:
           npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # Publish the server entry to the official MCP Registry. Runs after
+  # npm-publish so the registry's package-ownership check (npm mcpName ==
+  # server name) sees the just-published version. Uses GitHub Actions OIDC:
+  # the workflow's own identity (repository_owner = Continuum-AI-Corp) grants
+  # the io.github.continuum-ai-corp/* namespace — no PAT, no org-owner login,
+  # no read:org scope needed (which the interactive device flow lacks).
+  registry-publish:
+    needs: npm-publish
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: install mcp-publisher
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.0/mcp-publisher_linux_amd64.tar.gz" \
+            | tar -xz mcp-publisher
+      - name: login (GitHub Actions OIDC)
+        run: ./mcp-publisher login github-oidc
+      - name: publish to MCP Registry
+        run: ./mcp-publisher publish
