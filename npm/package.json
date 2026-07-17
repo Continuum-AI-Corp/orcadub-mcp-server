@@ -39,5 +39,6 @@
   "cpu": [
     "x64",
     "arm64"
-  ]
+  ],
+  "mcpName": "io.github.continuum-ai-corp/orcadub-mcp-server"
 }
