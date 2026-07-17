@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Continuum-AI-Corp/orcadub-mcp-server?include_prereleases)](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases)
-[![npm](https://img.shields.io/npm/v/orcadub-mcp-server)](https://www.npmjs.com/package/orcadub-mcp-server)
+[![npm](https://img.shields.io/npm/v/%40orcadub%2Fmcp)](https://www.npmjs.com/package/@orcadub/mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [Website](https://orcadub.orcarouter.ai) · [API Docs](https://orcadub.orcarouter.ai/api-docs) · [Get an API key](https://www.orcarouter.ai/console) · [Config examples](examples/) · [Releases](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases)
@@ -22,7 +22,7 @@ Give any MCP-capable agent — Claude Code, Claude Desktop, Codex CLI, Cursor, W
 ## Quick start
 
 ```bash
-claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp-server
+claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/mcp
 ```
 
 Then just ask your agent: *"Dub this into Chinese: https://www.youtube.com/watch?v=…"*
@@ -42,7 +42,7 @@ Dubbing jobs are billed per minute of source video. Without a key the server sti
 ### Claude Code
 
 ```bash
-claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp-server
+claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/mcp
 ```
 
 ### Claude Desktop
@@ -54,7 +54,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "orcadub": {
       "command": "npx",
-      "args": ["-y", "orcadub-mcp-server"],
+      "args": ["-y", "@orcadub/mcp"],
       "env": { "ORCADUB_API_KEY": "sk-orca-..." }
     }
   }
@@ -64,12 +64,12 @@ Add to `claude_desktop_config.json`:
 ### Codex CLI
 
 ```bash
-codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp-server
+codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/mcp
 ```
 
 ### Cursor / Windsurf / other MCP hosts
 
-Any host that launches stdio MCP servers works with the same shape: command `npx`, args `["-y", "orcadub-mcp-server"]`, env `ORCADUB_API_KEY`. Ready-to-copy configuration files for Claude Code, Codex, Cursor and Windsurf live in [`examples/`](examples/).
+Any host that launches stdio MCP servers works with the same shape: command `npx`, args `["-y", "@orcadub/mcp"]`, env `ORCADUB_API_KEY`. Ready-to-copy configuration files for Claude Code, Codex, Cursor and Windsurf live in [`examples/`](examples/).
 
 ### Docker
 
