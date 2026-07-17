@@ -1,8 +1,8 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/orcadub-dark.png">
-  <img src="docs/assets/orcadub.png" alt="OrcaDub" width="340">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/orcadub-dark.png">
+  <img src="assets/orcadub.png" alt="OrcaDub" width="340">
 </picture>
 
 ### Translate any video. Keep the voice.

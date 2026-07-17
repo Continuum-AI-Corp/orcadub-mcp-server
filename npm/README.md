@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Continuum-AI-Corp/orcadub-mcp-server/main/docs/assets/orcadub.png" alt="OrcaDub" width="300">
+  <img src="https://raw.githubusercontent.com/Continuum-AI-Corp/orcadub-mcp-server/main/assets/orcadub.png" alt="OrcaDub" width="300">
 </div>
 
 # orcadub-mcp-server

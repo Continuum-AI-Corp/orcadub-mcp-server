@@ -11,7 +11,7 @@ bin/
 dist/
 npm/
 examples/
-docs/
+assets/
 server.json
 Makefile
 *.md
