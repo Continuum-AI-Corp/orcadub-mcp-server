@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
-  "name": "io.github.continuum-ai-corp/orcadub-mcp-server",
+  "name": "io.github.Continuum-AI-Corp/orcadub-mcp-server",
   "description": "AI video dubbing via OrcaRouter (model orca/dub): upload a video or URL, poll, download the MP4.",
   "repository": {
     "url": "https://github.com/Continuum-AI-Corp/orcadub-mcp-server",
     "source": "github"
   },
-  "version": "1.0.3",
+  "version": "1.0.4",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@orcadub/mcp",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "transport": {
         "type": "stdio"
       },
