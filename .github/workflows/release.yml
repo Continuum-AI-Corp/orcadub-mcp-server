@@ -64,6 +64,8 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+      - name: sync root README into the package
+        run: cp README.md npm/README.md
       - name: stamp version from tag
         working-directory: npm
         run: npm version --no-git-tag-version "${GITHUB_REF_NAME#v}"

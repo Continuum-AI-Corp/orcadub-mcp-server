@@ -3,6 +3,7 @@
 /bin/
 /dist/
 npm/vendor/
+npm/README.md
 npm/node_modules/
 
 # editor / os
