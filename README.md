@@ -1,11 +1,35 @@
-# OrcaDub MCP Server
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/orcadub-dark.png">
+  <img src="docs/assets/orcadub.png" alt="OrcaDub" width="340">
+</picture>
+
+### Translate any video. Keep the voice.
+
+**The official [MCP](https://modelcontextprotocol.io) server for [OrcaDub](https://orcadub.orcarouter.ai) — AI video dubbing, driven from your agent.**
 
 [![CI](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Continuum-AI-Corp/orcadub-mcp-server?include_prereleases)](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases)
+[![npm](https://img.shields.io/npm/v/orcadub-mcp-server)](https://www.npmjs.com/package/orcadub-mcp-server)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Continuum-AI-Corp/orcadub-mcp-server)](https://goreportcard.com/report/github.com/Continuum-AI-Corp/orcadub-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-An [MCP](https://modelcontextprotocol.io) server for [OrcaDub](https://orcadub.orcarouter.ai) — AI video dubbing. Give any MCP-capable agent (Claude Code, Claude Desktop, Codex CLI, Cursor, …) the ability to dub a video into another language: upload a file or pass a URL, submit a job to the `orca/dub` model through the [OrcaRouter](https://www.orcarouter.ai) gateway, poll progress, and download the finished MP4.
+[Website](https://orcadub.orcarouter.ai) · [API Docs](https://orcadub.orcarouter.ai/api-docs) · [Get an API key](https://www.orcarouter.ai/console) · [Config examples](examples/) · [Releases](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases)
+
+</div>
+
+---
+
+Give any MCP-capable agent — Claude Code, Claude Desktop, Codex CLI, Cursor, Windsurf — the ability to dub a video into another language: upload a file or pass a URL, submit a job to the `orca/dub` model through the [OrcaRouter](https://www.orcarouter.ai) gateway, poll progress, and download the finished MP4.
+
+## Quick start
+
+```bash
+claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp-server
+```
+
+Then just ask your agent: *"Dub this into Chinese: https://www.youtube.com/watch?v=…"*
 
 ## Prerequisites
 
