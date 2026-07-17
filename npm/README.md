@@ -1,4 +1,10 @@
+<div align="center">
+  <img src="https://raw.githubusercontent.com/Continuum-AI-Corp/orcadub-mcp-server/main/assets/orcadub.png" alt="OrcaDub" width="300">
+</div>
+
 # orcadub-mcp-server
+
+**Translate any video. Keep the voice.**
 
 MCP server for [OrcaDub](https://orcadub.orcarouter.ai) — AI video dubbing via
 [OrcaRouter](https://www.orcarouter.ai) (model `orca/dub`): upload a video or
