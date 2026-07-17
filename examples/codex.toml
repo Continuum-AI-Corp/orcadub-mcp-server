@@ -3,11 +3,11 @@
 # real OrcaRouter API key (https://www.orcarouter.ai/console).
 #
 # One-command alternative:
-#   codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y orcadub-mcp-server
+#   codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/mcp
 
 [mcp_servers.orcadub]
 command = "npx"
-args = ["-y", "orcadub-mcp-server"]
+args = ["-y", "@orcadub/mcp"]
 
 [mcp_servers.orcadub.env]
 ORCADUB_API_KEY = "sk-orca-REPLACE_ME"
