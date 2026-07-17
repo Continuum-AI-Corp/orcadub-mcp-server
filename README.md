@@ -9,7 +9,6 @@
 [![CI](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Continuum-AI-Corp/orcadub-mcp-server?include_prereleases)](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases)
 [![npm](https://img.shields.io/npm/v/orcadub-mcp-server)](https://www.npmjs.com/package/orcadub-mcp-server)
-[![Go Report Card](https://goreportcard.com/badge/github.com/Continuum-AI-Corp/orcadub-mcp-server)](https://goreportcard.com/report/github.com/Continuum-AI-Corp/orcadub-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [Website](https://orcadub.orcarouter.ai) · [API Docs](https://orcadub.orcarouter.ai/api-docs) · [Get an API key](https://www.orcarouter.ai/console) · [Config examples](examples/) · [Releases](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases)
