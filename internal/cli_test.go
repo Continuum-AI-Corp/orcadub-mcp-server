@@ -3,9 +3,12 @@ package dub
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -198,5 +201,62 @@ func TestRunCLICreateValidation(t *testing.T) {
 	})
 	if out.code != 1 || !strings.Contains(out.err, "unknown --opt key") {
 		t.Errorf("want unknown-opt error exit 1, got code=%d err=%q", out.code, out.err)
+	}
+}
+
+func TestRunCLIUploadAndDownload(t *testing.T) {
+	payload := bytes.Repeat([]byte{0xCD}, 2048)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/files" && r.Method == http.MethodPost:
+			file, _, _ := r.FormFile("file")
+			n, _ := io.Copy(io.Discard, file)
+			_ = file.Close()
+			_, _ = fmt.Fprintf(w, `{"id":"file-1","object":"file","bytes":%d,"purpose":"user_data","status":"processed"}`, n)
+		case r.URL.Path == "/v1/videos/job-1" && r.Method == http.MethodGet:
+			_, _ = w.Write([]byte(`{"id":"job-1","object":"video","status":"completed","progress":100,"job_id":"uuid-9"}`))
+		case r.URL.Path == "/v1/videos/uuid-9/content":
+			_, _ = w.Write(payload)
+		default:
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("ORCADUB_API_KEY", "sk-test")
+	t.Setenv("ORCADUB_BASE_URL", srv.URL)
+
+	// upload
+	src := writeTempFile(t, 1024)
+	out := captureStdout(t, func() int { return RunCLI([]string{"upload", "--path", src}) })
+	if out.code != 0 || !strings.Contains(out.out, `"file-1"`) {
+		t.Fatalf("upload code=%d out=%s err=%s", out.code, out.out, out.err)
+	}
+
+	// download
+	dest := filepath.Join(t.TempDir(), "out.mp4")
+	out = captureStdout(t, func() int {
+		return RunCLI([]string{"download", "--video-id", "job-1", "--dest", dest})
+	})
+	if out.code != 0 {
+		t.Fatalf("download code=%d err=%s", out.code, out.err)
+	}
+	if !strings.Contains(out.out, `"bytes": 2048`) {
+		t.Errorf("download stdout = %s", out.out)
+	}
+	got, _ := os.ReadFile(dest)
+	if !bytes.Equal(got, payload) {
+		t.Error("downloaded bytes mismatch")
+	}
+}
+
+func TestRunCLIUploadDownloadValidation(t *testing.T) {
+	t.Setenv("ORCADUB_API_KEY", "sk-test")
+	out := captureStdout(t, func() int { return RunCLI([]string{"upload"}) })
+	if out.code != 1 || !strings.Contains(out.err, "--path") {
+		t.Errorf("upload without --path: code=%d err=%q", out.code, out.err)
+	}
+	out = captureStdout(t, func() int { return RunCLI([]string{"download", "--video-id", "x"}) })
+	if out.code != 1 || !strings.Contains(out.err, "--dest") {
+		t.Errorf("download without --dest: code=%d err=%q", out.code, out.err)
 	}
 }

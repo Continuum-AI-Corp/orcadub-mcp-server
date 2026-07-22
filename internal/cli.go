@@ -180,6 +180,35 @@ func RunCLI(args []string) int {
 			return fail(err)
 		}
 		return emit(c.CreateVideo(ctx, &req))
+	case "upload":
+		fs := flag.NewFlagSet("upload", flag.ContinueOnError)
+		path := fs.String("path", "", "absolute path of the local video file (REQUIRED)")
+		purpose := fs.String("purpose", "", "OpenAI file purpose; default user_data")
+		if err := fs.Parse(rest); err != nil {
+			return fail(err)
+		}
+		if *path == "" {
+			return fail(fmt.Errorf("upload: --path is required"))
+		}
+		return emit(c.UploadFile(ctx, *path, *purpose))
+	case "download":
+		fs := flag.NewFlagSet("download", flag.ContinueOnError)
+		id := fs.String("video-id", "", "the completed job/video id (REQUIRED)")
+		dest := fs.String("dest", "", "local path to write the MP4 (REQUIRED, must not exist)")
+		if err := fs.Parse(rest); err != nil {
+			return fail(err)
+		}
+		if *id == "" {
+			return fail(fmt.Errorf("download: --video-id is required"))
+		}
+		if *dest == "" {
+			return fail(fmt.Errorf("download: --dest is required"))
+		}
+		n, err := c.DownloadContent(ctx, *id, *dest)
+		if err != nil {
+			return fail(err)
+		}
+		return emit[any](map[string]any{"video_id": *id, "dest": *dest, "bytes": n}, nil)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n%s\n", cmd, cliUsage)
 		return 2
