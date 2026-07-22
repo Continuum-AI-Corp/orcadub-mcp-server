@@ -116,7 +116,7 @@ func (t *toolLayer) dubUpload(ctx context.Context, _ *mcp.CallToolRequest, in Up
 // buildCreateRequest performs dub_create's input validation and maps
 // CreateInput onto the wire CreateVideoRequest. Shared by the MCP tool
 // (dubCreate) and the CLI create handler so both build an identical body.
-func buildCreateRequest(in CreateInput) (CreateVideoRequest, error) {
+func buildCreateRequest(in *CreateInput) (CreateVideoRequest, error) {
 	hasFile, hasURL := in.FileID != "", in.URL != ""
 	if hasFile == hasURL {
 		return CreateVideoRequest{}, fmt.Errorf("provide exactly one of file_id or url")
@@ -158,7 +158,7 @@ func buildCreateRequest(in CreateInput) (CreateVideoRequest, error) {
 
 //nolint:gocritic // in must be a value type: mcp.AddTool infers the input schema from the In type parameter.
 func (t *toolLayer) dubCreate(ctx context.Context, _ *mcp.CallToolRequest, in CreateInput) (*mcp.CallToolResult, any, error) {
-	req, err := buildCreateRequest(in)
+	req, err := buildCreateRequest(&in)
 	if err != nil {
 		return nil, nil, err
 	}

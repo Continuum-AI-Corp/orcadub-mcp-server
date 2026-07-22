@@ -25,6 +25,8 @@ func parseBoolOpt(key, val string) (*bool, error) {
 // deploy default). Dotted keys (glossary.TERM, speaker_assignments.LABEL)
 // accumulate into maps. Unknown keys are a hard error so a mistyped paid-job
 // parameter never gets silently dropped.
+//
+//nolint:gocyclo // flat key→field dispatch; splitting the switch would obscure the 1:1 option mapping.
 func applyCreateOpts(in *CreateInput, opts []string) error {
 	for _, raw := range opts {
 		key, val, ok := strings.Cut(raw, "=")
@@ -133,9 +135,11 @@ With no subcommand the binary runs as an MCP stdio server.`
 // RunCLI executes one CLI subcommand. args is os.Args[1:] (args[0] is the
 // subcommand). Success prints result JSON to stdout and returns 0; failures
 // print to stderr and return 1; an unknown subcommand returns 2.
+//
+//nolint:gocyclo // subcommand dispatch; one case per CLI verb is clearer flat than split.
 func RunCLI(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, cliUsage)
+		_, _ = fmt.Fprintln(os.Stderr, cliUsage)
 		return 2
 	}
 	cmd := args[0]
@@ -175,7 +179,7 @@ func RunCLI(args []string) int {
 		if err := applyCreateOpts(&in, opts); err != nil {
 			return fail(err)
 		}
-		req, err := buildCreateRequest(in)
+		req, err := buildCreateRequest(&in)
 		if err != nil {
 			return fail(err)
 		}
@@ -210,7 +214,7 @@ func RunCLI(args []string) int {
 		}
 		return emit[any](map[string]any{"video_id": *id, "dest": *dest, "bytes": n}, nil)
 	default:
-		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n%s\n", cmd, cliUsage)
+		_, _ = fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n%s\n", cmd, cliUsage)
 		return 2
 	}
 }
@@ -238,20 +242,23 @@ func emit[T any](v T, err error) int {
 	if mErr != nil {
 		return fail(mErr)
 	}
-	fmt.Fprintln(os.Stdout, string(b))
+	_, _ = fmt.Fprintln(os.Stdout, string(b))
 	return 0
 }
 
 // fail prints err to stderr and returns exit code 1.
 func fail(err error) int {
-	fmt.Fprintln(os.Stderr, err.Error())
+	_, _ = fmt.Fprintln(os.Stderr, err.Error())
 	return 1
 }
 
 // stringSlice collects a repeatable string flag (--opt a=b --opt c=d).
 type stringSlice []string
 
+// String renders the collected values (flag.Value interface).
 func (s *stringSlice) String() string { return strings.Join(*s, ",") }
+
+// Set appends one occurrence of the flag (flag.Value interface).
 func (s *stringSlice) Set(v string) error {
 	*s = append(*s, v)
 	return nil

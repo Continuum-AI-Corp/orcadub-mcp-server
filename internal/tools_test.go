@@ -12,7 +12,7 @@ import (
 
 func TestBuildCreateRequest(t *testing.T) {
 	tr := true
-	req, err := buildCreateRequest(CreateInput{
+	req, err := buildCreateRequest(&CreateInput{
 		SourceLang: "en", TargetLang: "zh", URL: "https://x/v.mp4",
 		PreserveBGM: &tr,
 	})
@@ -29,10 +29,10 @@ func TestBuildCreateRequest(t *testing.T) {
 		t.Errorf("preserve_bgm = %v, want *\"true\"", req.PreserveBGM)
 	}
 	// XOR + video_name validation lives in the helper now.
-	if _, err := buildCreateRequest(CreateInput{SourceLang: "en", TargetLang: "zh", FileID: "f", URL: "u"}); err == nil || !strings.Contains(err.Error(), "exactly one") {
+	if _, err := buildCreateRequest(&CreateInput{SourceLang: "en", TargetLang: "zh", FileID: "f", URL: "u"}); err == nil || !strings.Contains(err.Error(), "exactly one") {
 		t.Errorf("want XOR error, got %v", err)
 	}
-	if _, err := buildCreateRequest(CreateInput{SourceLang: "en", TargetLang: "zh", FileID: "f"}); err == nil || !strings.Contains(err.Error(), "video_name") {
+	if _, err := buildCreateRequest(&CreateInput{SourceLang: "en", TargetLang: "zh", FileID: "f"}); err == nil || !strings.Contains(err.Error(), "video_name") {
 		t.Errorf("want video_name error, got %v", err)
 	}
 }
