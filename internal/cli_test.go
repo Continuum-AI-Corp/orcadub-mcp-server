@@ -41,9 +41,9 @@ func TestApplyCreateOpts(t *testing.T) {
 
 func TestApplyCreateOptsErrors(t *testing.T) {
 	cases := map[string][]string{
-		"unknown --opt key":  {"no_such_field=1"},
-		"malformed --opt":    {"preserve_bgm"},
-		"preserve_bgm":       {"preserve_bgm=maybe"},
+		"unknown --opt key": {"no_such_field=1"},
+		"malformed --opt":   {"preserve_bgm"},
+		"preserve_bgm":      {"preserve_bgm=maybe"},
 	}
 	for wantSubstr, opts := range cases {
 		var in CreateInput
