@@ -1,15 +1,15 @@
 {
-  "name": "@orcadub/mcp",
+  "name": "@orcadub/cli",
   "version": "0.0.0",
-  "description": "MCP server for OrcaDub \u2014 AI video dubbing via OrcaRouter (model orca/dub): upload, submit, poll, download.",
+  "description": "OrcaDub CLI \u2014 AI video dubbing via OrcaRouter (model orca/dub): upload, submit, poll, download. Also runs as an MCP server with no subcommand.",
   "keywords": [
-    "mcp",
-    "modelcontextprotocol",
     "orcadub",
     "orcarouter",
     "dubbing",
     "video",
-    "translation"
+    "translation",
+    "cli",
+    "mcp"
   ],
   "homepage": "https://github.com/Continuum-AI-Corp/orcadub-mcp-server#readme",
   "repository": {

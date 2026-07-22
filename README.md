@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Continuum-AI-Corp/orcadub-mcp-server?include_prereleases)](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases)
-[![npm](https://img.shields.io/npm/v/%40orcadub%2Fmcp)](https://www.npmjs.com/package/@orcadub/mcp)
+[![npm](https://img.shields.io/npm/v/%40orcadub%2Fcli)](https://www.npmjs.com/package/@orcadub/cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [Website](https://orcadub.orcarouter.ai) · [API Docs](https://orcadub.orcarouter.ai/api-docs) · [Get an API key](https://www.orcarouter.ai/console) · [Config examples](examples/) · [Releases](https://github.com/Continuum-AI-Corp/orcadub-mcp-server/releases)
@@ -19,10 +19,31 @@
 
 Give any MCP-capable agent — Claude Code, Claude Desktop, Codex CLI, Cursor, Windsurf — the ability to dub a video into another language: upload a file or pass a URL, submit a job to the `orca/dub` model through the [OrcaRouter](https://www.orcarouter.ai) gateway, poll progress, and download the finished MP4.
 
+## CLI usage
+
+Every operation is a one-shot subcommand (no resident server needed):
+
+```bash
+export ORCADUB_API_KEY=sk-orca-...   # from https://www.orcarouter.ai/console
+
+npx -y @orcadub/cli health
+npx -y @orcadub/cli upload --path ./clip.mp4
+npx -y @orcadub/cli create --source-lang en --target-lang ja \
+  --url https://youtu.be/... --opt preserve_bgm=true
+npx -y @orcadub/cli get --video-id <id>
+npx -y @orcadub/cli download --video-id <id> --dest ./out.mp4
+```
+
+Optional `create` parameters use repeatable `--opt key=val` (e.g.
+`--opt watermark=false --opt resolution=1080p --opt glossary.OrcaDub=虎鲸配音`).
+Results print as JSON on stdout; errors go to stderr with a non-zero exit.
+
+With no subcommand the same binary runs as an MCP stdio server (`npx -y @orcadub/cli`).
+
 ## Quick start
 
 ```bash
-claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/mcp
+claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/cli
 ```
 
 Then just ask your agent: *"Dub this into Chinese: https://www.youtube.com/watch?v=…"*
@@ -42,7 +63,7 @@ Dubbing jobs are billed per minute of source video. Without a key the server sti
 ### Claude Code
 
 ```bash
-claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/mcp
+claude mcp add orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/cli
 ```
 
 ### Claude Desktop
@@ -54,7 +75,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "orcadub": {
       "command": "npx",
-      "args": ["-y", "@orcadub/mcp"],
+      "args": ["-y", "@orcadub/cli"],
       "env": { "ORCADUB_API_KEY": "sk-orca-..." }
     }
   }
@@ -64,12 +85,12 @@ Add to `claude_desktop_config.json`:
 ### Codex CLI
 
 ```bash
-codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/mcp
+codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/cli
 ```
 
 ### Cursor / Windsurf / other MCP hosts
 
-Any host that launches stdio MCP servers works with the same shape: command `npx`, args `["-y", "@orcadub/mcp"]`, env `ORCADUB_API_KEY`. Ready-to-copy configuration files for Claude Code, Codex, Cursor and Windsurf live in [`examples/`](examples/).
+Any host that launches stdio MCP servers works with the same shape: command `npx`, args `["-y", "@orcadub/cli"]`, env `ORCADUB_API_KEY`. Ready-to-copy configuration files for Claude Code, Codex, Cursor and Windsurf live in [`examples/`](examples/).
 
 ### Docker
 
