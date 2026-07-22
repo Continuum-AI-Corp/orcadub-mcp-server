@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Module path: `github.com/Continuum-AI-Corp/orcadub-mcp-server`; internal package is `dub` (`internal/*.go`).
-- Do NOT modify `internal/client.go`'s request behavior (HTTP, upload chunking, atomic download, `errNotAuthorized`, presigned-URL blanking). CLI reuses it as-is. The ONE permitted change is `LoadConfig` gaining an optional `ORCADUB_BASE_URL` override (test-only seam; defaults to the fixed gateway when unset) — this changes configuration reading, not request behavior.
+- Do NOT modify `internal/client.go`'s request behavior (HTTP, upload chunking, atomic download, `errNotAuthorized`, presigned-URL blanking). CLI reuses it as-is. The ONE permitted change is `LoadConfig` gaining an optional `ORCADUB_BASE_URL` override (primarily a test seam, but note it is read in `LoadConfig` which BOTH the CLI and the MCP-server path use — so it is a live runtime override in both modes, not test-only; it defaults to the fixed gateway when unset). This changes configuration reading, not request behavior. Risk is low: setting it requires environment access, which already exposes `ORCADUB_API_KEY`, so it crosses no new trust boundary.
 - API key comes ONLY from the `ORCADUB_API_KEY` environment variable via `LoadConfig()`. No `--api-key` flag.
 - No-args invocation MUST still start the MCP stdio server (backward compatibility).
 - CLI output contract: success → pretty JSON on **stdout**; failure → message on **stderr** + non-zero process exit.

@@ -11,7 +11,7 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "@orcadub/mcp",
+      "identifier": "@orcadub/cli",
       "version": "1.0.4",
       "transport": {
         "type": "stdio"

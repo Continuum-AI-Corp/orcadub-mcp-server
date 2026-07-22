@@ -55,7 +55,7 @@ server.json            # MCP Registry manifest
    convert via `boolStr`.
 6. **Folder names must not carry the `orcadub` brand** — directories are
    plain `cmd/`, `internal/`. The brand lives on the repo, the released
-   binary, and the npm package (`@orcadub/mcp`) only.
+   binary, and the npm package (`@orcadub/cli`) only.
 7. **Wire types in `internal/types.go` are vendored** from
    `orca-rt-dubbing/internal/quality/openaicompat` (the source of truth,
    shared with the server). Do not invent or rename JSON fields here — sync

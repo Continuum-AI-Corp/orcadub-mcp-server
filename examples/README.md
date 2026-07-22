@@ -22,18 +22,18 @@ client uses (`mcpServers`, `context_servers`, etc.).
 Claude Code (user scope, all projects):
 
 ```bash
-claude mcp add --scope user orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/mcp
+claude mcp add --scope user orcadub -e ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/cli
 ```
 
 Codex CLI:
 
 ```bash
-codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/mcp
+codex mcp add orcadub --env ORCADUB_API_KEY=sk-orca-... -- npx -y @orcadub/cli
 ```
 
 ## Docker variant
 
-Every example above launches the server with `npx -y @orcadub/mcp`. To run it
+Every example above launches the server with `npx -y @orcadub/cli`. To run it
 from the container image instead, swap the command in any of the files:
 
 ```json
