@@ -1,6 +1,11 @@
 package dub
 
 import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -37,6 +42,91 @@ func TestApplyCreateOpts(t *testing.T) {
 	if in.SpeakerAssignments["SPEAKER_00"] != "char-1" {
 		t.Errorf("speaker_assignments = %v", in.SpeakerAssignments)
 	}
+}
+
+// runCLIWith points RunCLI at a fake gateway by overriding the base+origin
+// URLs through the env-driven client, capturing stdout. It mirrors the
+// client_test.go httptest pattern.
+func TestRunCLIHealthAndGet(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/videos" && r.Method == http.MethodPost:
+			// health probe: dub service validation error
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"code":"invalid_request","message":"source_lang is required"}`))
+		case r.URL.Path == "/v1/videos/job-1" && r.Method == http.MethodGet:
+			_, _ = w.Write([]byte(`{"id":"job-1","object":"video","status":"completed","progress":100,"job_id":"uuid-9"}`))
+		default:
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("ORCADUB_API_KEY", "sk-test")
+	t.Setenv("ORCADUB_BASE_URL", srv.URL)
+
+	out := captureStdout(t, func() int { return RunCLI([]string{"health"}) })
+	if out.code != 0 {
+		t.Fatalf("health exit = %d, stderr=%s", out.code, out.err)
+	}
+	var health map[string]any
+	if err := json.Unmarshal([]byte(out.out), &health); err != nil {
+		t.Fatalf("health stdout not JSON: %q", out.out)
+	}
+	if health["status"] != "ok" {
+		t.Errorf("health status = %v", health["status"])
+	}
+
+	out = captureStdout(t, func() int { return RunCLI([]string{"get", "--video-id", "job-1"}) })
+	if out.code != 0 {
+		t.Fatalf("get exit = %d, stderr=%s", out.code, out.err)
+	}
+	if !strings.Contains(out.out, `"content_url"`) || !strings.Contains(out.out, "completed") {
+		t.Errorf("get stdout = %s", out.out)
+	}
+}
+
+func TestRunCLIUnknownSubcommand(t *testing.T) {
+	out := captureStdout(t, func() int { return RunCLI([]string{"bogus"}) })
+	if out.code != 2 {
+		t.Errorf("unknown subcommand exit = %d, want 2", out.code)
+	}
+	if !strings.Contains(out.err, "bogus") {
+		t.Errorf("stderr = %q, want to name the bad subcommand", out.err)
+	}
+}
+
+func TestRunCLIMissingKey(t *testing.T) {
+	t.Setenv("ORCADUB_API_KEY", "")
+	out := captureStdout(t, func() int { return RunCLI([]string{"health"}) })
+	if out.code != 1 {
+		t.Errorf("missing-key exit = %d, want 1", out.code)
+	}
+	if !strings.Contains(out.err, "ORCADUB_API_KEY") {
+		t.Errorf("stderr = %q, want ORCADUB_API_KEY guidance", out.err)
+	}
+}
+
+type cliOut struct {
+	out, err string
+	code     int
+}
+
+// captureStdout redirects os.Stdout and os.Stderr around fn and returns what
+// each captured plus fn's return code.
+func captureStdout(t *testing.T, fn func() int) cliOut {
+	t.Helper()
+	origOut, origErr := os.Stdout, os.Stderr
+	rOut, wOut, _ := os.Pipe()
+	rErr, wErr, _ := os.Pipe()
+	os.Stdout, os.Stderr = wOut, wErr
+	code := fn()
+	_ = wOut.Close()
+	_ = wErr.Close()
+	os.Stdout, os.Stderr = origOut, origErr
+	var bo, be bytes.Buffer
+	_, _ = bo.ReadFrom(rOut)
+	_, _ = be.ReadFrom(rErr)
+	return cliOut{out: bo.String(), err: be.String(), code: code}
 }
 
 func TestApplyCreateOptsErrors(t *testing.T) {

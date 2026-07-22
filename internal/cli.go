@@ -1,7 +1,11 @@
 package dub
 
 import (
+	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -107,4 +111,86 @@ func applyCreateOpts(in *CreateInput, opts []string) error {
 		}
 	}
 	return nil
+}
+
+// jsonResultBytes renders v as the same pretty JSON the MCP tools emit.
+func jsonResultBytes(v any) ([]byte, error) {
+	return json.MarshalIndent(v, "", "  ")
+}
+
+const cliUsage = `orcadub CLI — OrcaDub video dubbing (OrcaRouter model orca/dub).
+
+Usage:
+  orcadub health
+  orcadub upload   --path <file> [--purpose <p>]
+  orcadub create   --source-lang <c> --target-lang <c> (--url <u> | --file-id <id> --video-name <name>) [--opt key=val ...]
+  orcadub get      --video-id <id>
+  orcadub download --video-id <id> --dest <path>
+
+Auth: set ORCADUB_API_KEY (sk-orca-... from https://www.orcarouter.ai/console).
+With no subcommand the binary runs as an MCP stdio server.`
+
+// RunCLI executes one CLI subcommand. args is os.Args[1:] (args[0] is the
+// subcommand). Success prints result JSON to stdout and returns 0; failures
+// print to stderr and return 1; an unknown subcommand returns 2.
+func RunCLI(args []string) int {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, cliUsage)
+		return 2
+	}
+	cmd := args[0]
+	rest := args[1:]
+	c := newCLIClient()
+	ctx := context.Background()
+
+	switch cmd {
+	case "health":
+		return emit(c.Health(ctx))
+	case "get":
+		fs := flag.NewFlagSet("get", flag.ContinueOnError)
+		id := fs.String("video-id", "", "job id returned by create")
+		if err := fs.Parse(rest); err != nil {
+			return fail(err)
+		}
+		if *id == "" {
+			return fail(fmt.Errorf("get: --video-id is required"))
+		}
+		return emit(c.GetVideo(ctx, *id))
+	default:
+		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n%s\n", cmd, cliUsage)
+		return 2
+	}
+}
+
+// newCLIClient builds the client from env config, applying the test-only
+// ORCADUB_BASE_URL override to the origin URL too so downloads in tests hit
+// the same fake server.
+func newCLIClient() *Client {
+	cfg := LoadConfig()
+	c := NewClient(cfg)
+	if v := os.Getenv("ORCADUB_BASE_URL"); v != "" {
+		c.originURL = v
+	}
+	return c
+}
+
+// emit prints a successful result as JSON to stdout (returns 0) or routes the
+// error through fail. Generic over the (value, error) pairs client methods
+// return.
+func emit[T any](v T, err error) int {
+	if err != nil {
+		return fail(err)
+	}
+	b, mErr := jsonResultBytes(v)
+	if mErr != nil {
+		return fail(mErr)
+	}
+	fmt.Fprintln(os.Stdout, string(b))
+	return 0
+}
+
+// fail prints err to stderr and returns exit code 1.
+func fail(err error) int {
+	fmt.Fprintln(os.Stderr, err.Error())
+	return 1
 }

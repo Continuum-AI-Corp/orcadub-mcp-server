@@ -59,8 +59,12 @@ type Config struct {
 // register; once the key is set (and the session restarted) authentication
 // passes automatically.
 func LoadConfig() Config {
+	base := gatewayBaseURL
+	if v := os.Getenv("ORCADUB_BASE_URL"); v != "" {
+		base = v
+	}
 	return Config{
-		BaseURL: gatewayBaseURL,
+		BaseURL: base,
 		APIKey:  os.Getenv("ORCADUB_API_KEY"),
 	}
 }
