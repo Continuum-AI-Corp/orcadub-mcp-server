@@ -143,3 +143,60 @@ func TestApplyCreateOptsErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestRunCLICreate(t *testing.T) {
+	var gotBody map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/videos" || r.Method != http.MethodPost {
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		_, _ = w.Write([]byte(`{"id":"job-9","object":"video","status":"queued","progress":0}`))
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("ORCADUB_API_KEY", "sk-test")
+	t.Setenv("ORCADUB_BASE_URL", srv.URL)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"create",
+			"--source-lang", "en", "--target-lang", "ja",
+			"--url", "https://youtu.be/x",
+			"--opt", "preserve_bgm=true",
+			"--opt", "resolution=1080p",
+		})
+	})
+	if out.code != 0 {
+		t.Fatalf("create exit = %d, stderr=%s", out.code, out.err)
+	}
+	if gotBody["model"] != "orca/dub" || gotBody["source_lang"] != "en" || gotBody["target_lang"] != "ja" {
+		t.Errorf("body = %v", gotBody)
+	}
+	if gotBody["preserve_bgm"] != "true" {
+		t.Errorf("preserve_bgm on wire = %v, want string \"true\"", gotBody["preserve_bgm"])
+	}
+	if gotBody["resolution"] != "1080p" {
+		t.Errorf("resolution = %v", gotBody["resolution"])
+	}
+	if !strings.Contains(out.out, `"job-9"`) {
+		t.Errorf("stdout = %s", out.out)
+	}
+}
+
+func TestRunCLICreateValidation(t *testing.T) {
+	t.Setenv("ORCADUB_API_KEY", "sk-test")
+	// neither url nor file-id
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"create", "--source-lang", "en", "--target-lang", "ja"})
+	})
+	if out.code != 1 || !strings.Contains(out.err, "exactly one") {
+		t.Errorf("want XOR error exit 1, got code=%d err=%q", out.code, out.err)
+	}
+	// unknown --opt
+	out = captureStdout(t, func() int {
+		return RunCLI([]string{"create", "--source-lang", "en", "--target-lang", "ja",
+			"--url", "https://x", "--opt", "nope=1"})
+	})
+	if out.code != 1 || !strings.Contains(out.err, "unknown --opt key") {
+		t.Errorf("want unknown-opt error exit 1, got code=%d err=%q", out.code, out.err)
+	}
+}

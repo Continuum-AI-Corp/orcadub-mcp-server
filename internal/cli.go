@@ -156,6 +156,30 @@ func RunCLI(args []string) int {
 			return fail(fmt.Errorf("get: --video-id is required"))
 		}
 		return emit(c.GetVideo(ctx, *id))
+	case "create":
+		fs := flag.NewFlagSet("create", flag.ContinueOnError)
+		in := CreateInput{}
+		fs.StringVar(&in.SourceLang, "source-lang", "", "source language code (REQUIRED)")
+		fs.StringVar(&in.TargetLang, "target-lang", "", "target language code (REQUIRED)")
+		fs.StringVar(&in.URL, "url", "", "remote source video URL")
+		fs.StringVar(&in.FileID, "file-id", "", "uploaded file id from `upload`")
+		fs.StringVar(&in.VideoName, "video-name", "", "job title (REQUIRED with --file-id)")
+		var opts stringSlice
+		fs.Var(&opts, "opt", "optional parameter as key=value (repeatable)")
+		if err := fs.Parse(rest); err != nil {
+			return fail(err)
+		}
+		if in.SourceLang == "" || in.TargetLang == "" {
+			return fail(fmt.Errorf("create: --source-lang and --target-lang are required"))
+		}
+		if err := applyCreateOpts(&in, opts); err != nil {
+			return fail(err)
+		}
+		req, err := buildCreateRequest(in)
+		if err != nil {
+			return fail(err)
+		}
+		return emit(c.CreateVideo(ctx, &req))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n%s\n", cmd, cliUsage)
 		return 2
@@ -193,4 +217,13 @@ func emit[T any](v T, err error) int {
 func fail(err error) int {
 	fmt.Fprintln(os.Stderr, err.Error())
 	return 1
+}
+
+// stringSlice collects a repeatable string flag (--opt a=b --opt c=d).
+type stringSlice []string
+
+func (s *stringSlice) String() string { return strings.Join(*s, ",") }
+func (s *stringSlice) Set(v string) error {
+	*s = append(*s, v)
+	return nil
 }
