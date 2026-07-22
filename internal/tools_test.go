@@ -10,6 +10,33 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+func TestBuildCreateRequest(t *testing.T) {
+	tr := true
+	req, err := buildCreateRequest(CreateInput{
+		SourceLang: "en", TargetLang: "zh", URL: "https://x/v.mp4",
+		PreserveBGM: &tr,
+	})
+	if err != nil {
+		t.Fatalf("buildCreateRequest: %v", err)
+	}
+	if req.SourceLang != "en" || req.TargetLang != "zh" {
+		t.Errorf("langs = %q/%q", req.SourceLang, req.TargetLang)
+	}
+	if req.VideoPath == nil || req.VideoPath.URL != "https://x/v.mp4" {
+		t.Errorf("video_path = %+v", req.VideoPath)
+	}
+	if req.PreserveBGM == nil || *req.PreserveBGM != "true" {
+		t.Errorf("preserve_bgm = %v, want *\"true\"", req.PreserveBGM)
+	}
+	// XOR + video_name validation lives in the helper now.
+	if _, err := buildCreateRequest(CreateInput{SourceLang: "en", TargetLang: "zh", FileID: "f", URL: "u"}); err == nil || !strings.Contains(err.Error(), "exactly one") {
+		t.Errorf("want XOR error, got %v", err)
+	}
+	if _, err := buildCreateRequest(CreateInput{SourceLang: "en", TargetLang: "zh", FileID: "f"}); err == nil || !strings.Contains(err.Error(), "video_name") {
+		t.Errorf("want video_name error, got %v", err)
+	}
+}
+
 func TestDubCreateToolValidatesInput(t *testing.T) {
 	c := testClient(t, func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"id":"job-1","status":"queued"}`))
