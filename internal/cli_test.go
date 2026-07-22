@@ -44,9 +44,9 @@ func TestApplyCreateOpts(t *testing.T) {
 	}
 }
 
-// runCLIWith points RunCLI at a fake gateway by overriding the base+origin
-// URLs through the env-driven client, capturing stdout. It mirrors the
-// client_test.go httptest pattern.
+// TestRunCLIHealthAndGet points RunCLI at a fake gateway by overriding the
+// base+origin URLs through the env-driven client, capturing stdout. It
+// mirrors the client_test.go httptest pattern.
 func TestRunCLIHealthAndGet(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
