@@ -1,10 +1,12 @@
 package dub
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -128,9 +130,36 @@ Usage:
   orcadub create   --source-lang <c> --target-lang <c> (--url <u> | --file-id <id> --video-name <name>) [--opt key=val ...]
   orcadub get      --video-id <id>
   orcadub download --video-id <id> --dest <path>
+  orcadub skill install [--platform <id> ...] [--scope project|global] [--yes] [--force] [--json]
 
 Auth: set ORCADUB_API_KEY (sk-orca-... from https://www.orcarouter.ai/console).
+Skill installation does not require an API key.
 With no subcommand the binary runs as an MCP stdio server.`
+
+const skillInstallUsage = `Usage:
+  orcadub skill install [options]
+
+Options:
+  --platform <id>          target platform (repeatable)
+  --scope project|global   install under the current project or home directory
+  --yes                    accept defaults; detected platforms, or all when none are detected
+  --force                  replace an existing different OrcaDub Skill
+  --json                   print a structured report and do not prompt`
+
+var (
+	skillCLIInstaller  = newSkillInstaller
+	skillCLIWorkingDir = os.Getwd
+	skillCLIHomeDir    = os.UserHomeDir
+	skillCLIInput      = func() io.Reader { return os.Stdin }
+)
+
+type skillCLIOptions struct {
+	platformIDs []string
+	scopeValue  string
+	yes         bool
+	force       bool
+	jsonOutput  bool
+}
 
 // RunCLI executes one CLI subcommand. args is os.Args[1:] (args[0] is the
 // subcommand). Success prints result JSON to stdout and returns 0; failures
@@ -144,6 +173,9 @@ func RunCLI(args []string) int {
 	}
 	cmd := args[0]
 	rest := args[1:]
+	if cmd == "skill" {
+		return runSkillCLI(rest)
+	}
 	c := newCLIClient()
 	ctx := context.Background()
 
@@ -217,6 +249,312 @@ func RunCLI(args []string) int {
 		_, _ = fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n%s\n", cmd, cliUsage)
 		return 2
 	}
+}
+
+func runSkillCLI(args []string) int {
+	if handled, code := handleSkillCLICommandPreamble(args); handled {
+		return code
+	}
+
+	options, err := parseSkillCLIOptions(args[1:])
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err.Error())
+		return 2
+	}
+
+	reader := bufio.NewReader(skillCLIInput())
+	nonInteractive := options.yes || options.jsonOutput
+	scope, err := selectSkillInstallScope(
+		options.scopeValue,
+		nonInteractive || len(options.platformIDs) > 0,
+		reader,
+	)
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err.Error())
+		return 2
+	}
+	projectDir, homeDir, err := resolveSkillCLIBaseDirs(scope, len(options.platformIDs) == 0)
+	if err != nil {
+		return fail(err)
+	}
+	var detected []string
+	if projectDir != "" && len(options.platformIDs) == 0 {
+		detected = detectSkillPlatforms(projectDir)
+	}
+	selected, err := selectSkillInstallPlatforms(
+		options.platformIDs,
+		detected,
+		nonInteractive,
+		reader,
+	)
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err.Error())
+		return 2
+	}
+
+	report, err := skillCLIInstaller().install(
+		context.Background(),
+		selected,
+		scope,
+		projectDir,
+		homeDir,
+		options.force,
+	)
+	if err != nil {
+		return fail(err)
+	}
+	if options.jsonOutput {
+		data, marshalErr := jsonResultBytes(report)
+		if marshalErr != nil {
+			return fail(marshalErr)
+		}
+		_, _ = fmt.Fprintln(os.Stdout, string(data))
+	} else {
+		renderSkillInstallReport(report)
+	}
+	if skillInstallReportFailed(report) {
+		return 1
+	}
+	return 0
+}
+
+func resolveSkillCLIBaseDirs(
+	scope skillInstallScope,
+	needDetection bool,
+) (projectDir, homeDir string, err error) {
+	if scope == skillInstallProject {
+		projectDir, err = skillCLIWorkingDir()
+		if err != nil {
+			return "", "", fmt.Errorf("resolve current directory: %w", err)
+		}
+		return projectDir, "", nil
+	}
+
+	homeDir, err = skillCLIHomeDir()
+	if err != nil {
+		return "", "", fmt.Errorf("resolve home directory: %w", err)
+	}
+	if needDetection {
+		// Detection is only a convenience for global installs. If cwd is
+		// unavailable, the platform selector can still use explicit/all choices.
+		projectDir, _ = skillCLIWorkingDir()
+	}
+	return projectDir, homeDir, nil
+}
+
+func handleSkillCLICommandPreamble(args []string) (handled bool, exitCode int) {
+	if len(args) == 0 || args[0] != "install" {
+		if len(args) == 0 {
+			_, _ = fmt.Fprintln(os.Stderr, "skill: missing command\n\n"+skillInstallUsage)
+		} else {
+			_, _ = fmt.Fprintf(os.Stderr, "skill: unknown command %q\n\n%s\n", args[0], skillInstallUsage)
+		}
+		return true, 2
+	}
+	if len(args) == 2 && (args[1] == "--help" || args[1] == "-h" || args[1] == "help") {
+		_, _ = fmt.Fprintln(os.Stdout, skillInstallUsage)
+		return true, 0
+	}
+	return false, 0
+}
+
+func parseSkillCLIOptions(args []string) (skillCLIOptions, error) {
+	flags := flag.NewFlagSet("skill install", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	options := skillCLIOptions{}
+	var platformIDs stringSlice
+	flags.Var(&platformIDs, "platform", "target platform ID (repeatable)")
+	flags.StringVar(&options.scopeValue, "scope", "", "install scope: project or global")
+	flags.BoolVar(&options.yes, "yes", false, "accept detected/default targets without prompting")
+	flags.BoolVar(&options.force, "force", false, "replace an existing different Skill")
+	flags.BoolVar(&options.jsonOutput, "json", false, "print a structured JSON report")
+	if err := flags.Parse(args); err != nil {
+		return skillCLIOptions{}, err
+	}
+	if flags.NArg() != 0 {
+		return skillCLIOptions{}, fmt.Errorf(
+			"skill install: unexpected arguments: %s",
+			strings.Join(flags.Args(), " "),
+		)
+	}
+	options.platformIDs = append([]string(nil), platformIDs...)
+	return options, nil
+}
+
+func selectSkillInstallScope(
+	raw string,
+	nonInteractive bool,
+	reader *bufio.Reader,
+) (skillInstallScope, error) {
+	if raw != "" {
+		scope := skillInstallScope(raw)
+		if scope != skillInstallProject && scope != skillInstallGlobal {
+			return "", fmt.Errorf("unknown install scope %q (use project or global)", raw)
+		}
+		return scope, nil
+	}
+	if nonInteractive {
+		return skillInstallProject, nil
+	}
+
+	_, _ = fmt.Fprintln(os.Stdout, "Install scope:")
+	_, _ = fmt.Fprintln(os.Stdout, "  1) Project (current directory)")
+	_, _ = fmt.Fprintln(os.Stdout, "  2) Global (home directory)")
+	_, _ = fmt.Fprint(os.Stdout, "Select [1]: ")
+	line, err := reader.ReadString('\n')
+	if err != nil && line == "" {
+		return "", fmt.Errorf("read install scope: %w", err)
+	}
+	switch strings.TrimSpace(line) {
+	case "", "1", "project":
+		return skillInstallProject, nil
+	case "2", "global":
+		return skillInstallGlobal, nil
+	default:
+		return "", fmt.Errorf("invalid install scope %q (use 1/project or 2/global)", strings.TrimSpace(line))
+	}
+}
+
+func selectSkillInstallPlatforms(
+	explicit []string,
+	detected []string,
+	nonInteractive bool,
+	reader *bufio.Reader,
+) ([]string, error) {
+	if len(explicit) > 0 {
+		return validateSkillPlatformIDs(explicit)
+	}
+	if nonInteractive {
+		if len(detected) > 0 {
+			return append([]string(nil), detected...), nil
+		}
+		return allSkillPlatformIDs(), nil
+	}
+	return promptSkillInstallPlatforms(detected, reader)
+}
+
+func promptSkillInstallPlatforms(detected []string, reader *bufio.Reader) ([]string, error) {
+	detectedSet := make(map[string]bool, len(detected))
+	for _, id := range detected {
+		detectedSet[id] = true
+	}
+	_, _ = fmt.Fprintln(os.Stdout, "Platforms:")
+	for index, platform := range skillPlatforms {
+		suffix := ""
+		if detectedSet[platform.ID] {
+			suffix = " (detected)"
+		}
+		_, _ = fmt.Fprintf(os.Stdout, "  %2d) %-16s %s%s\n", index+1, platform.ID, platform.Name, suffix)
+	}
+	if len(detected) > 0 {
+		_, _ = fmt.Fprintf(
+			os.Stdout,
+			"Select comma-separated numbers or IDs [%s]: ",
+			strings.Join(detected, ","),
+		)
+	} else {
+		_, _ = fmt.Fprint(os.Stdout, "Select comma-separated numbers or IDs (or all): ")
+	}
+	line, err := reader.ReadString('\n')
+	if err != nil && line == "" {
+		return nil, fmt.Errorf("read platform selection: %w", err)
+	}
+	return parseSkillPlatformSelection(strings.TrimSpace(line), detected)
+}
+
+func parseSkillPlatformSelection(line string, detected []string) ([]string, error) {
+	if line == "" {
+		if len(detected) == 0 {
+			return nil, fmt.Errorf("select at least one platform")
+		}
+		return append([]string(nil), detected...), nil
+	}
+	if line == "all" {
+		return allSkillPlatformIDs(), nil
+	}
+
+	ids := make([]string, 0)
+	for _, token := range strings.Split(line, ",") {
+		token = strings.TrimSpace(token)
+		if index, parseErr := strconv.Atoi(token); parseErr == nil {
+			if index < 1 || index > len(skillPlatforms) {
+				return nil, fmt.Errorf("platform number %d is out of range", index)
+			}
+			ids = append(ids, skillPlatforms[index-1].ID)
+			continue
+		}
+		ids = append(ids, token)
+	}
+	return validateSkillPlatformIDs(ids)
+}
+
+func allSkillPlatformIDs() []string {
+	all := make([]string, 0, len(skillPlatforms))
+	for _, platform := range skillPlatforms {
+		all = append(all, platform.ID)
+	}
+	return all
+}
+
+func validateSkillPlatformIDs(ids []string) ([]string, error) {
+	selected := make([]string, 0, len(ids))
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if _, ok := findSkillPlatform(id); !ok {
+			return nil, fmt.Errorf("unknown platform %q", id)
+		}
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		selected = append(selected, id)
+	}
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("select at least one platform")
+	}
+	return selected, nil
+}
+
+func renderSkillInstallReport(report skillInstallReport) {
+	_, _ = fmt.Fprintf(os.Stdout, "OrcaDub Skill source: %s\n", report.Source)
+	for _, result := range report.Results {
+		platforms := strings.Join(result.PlatformNames, ", ")
+		switch result.Status {
+		case skillInstallStatusConflict:
+			_, _ = fmt.Fprintf(
+				os.Stdout,
+				"conflict  %s -> %s (kept existing file; rerun with --force)\n",
+				platforms,
+				result.Path,
+			)
+		case skillInstallStatusError:
+			_, _ = fmt.Fprintf(
+				os.Stdout,
+				"error     %s -> %s: %s\n",
+				platforms,
+				result.Path,
+				result.Error,
+			)
+		default:
+			_, _ = fmt.Fprintf(
+				os.Stdout,
+				"%-9s %s -> %s\n",
+				result.Status,
+				platforms,
+				result.Path,
+			)
+		}
+	}
+}
+
+func skillInstallReportFailed(report skillInstallReport) bool {
+	for _, result := range report.Results {
+		if result.Status == skillInstallStatusConflict || result.Status == skillInstallStatusError {
+			return true
+		}
+	}
+	return false
 }
 
 // newCLIClient builds the client from env config, applying the test-only

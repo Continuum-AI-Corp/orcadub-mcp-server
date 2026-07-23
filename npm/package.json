@@ -1,13 +1,15 @@
 {
   "name": "@orcadub/cli",
   "version": "0.0.0",
-  "description": "OrcaDub CLI \u2014 AI video dubbing via OrcaRouter (model orca/dub): upload, submit, poll, download. Also runs as an MCP server with no subcommand.",
+  "description": "OrcaDub CLI \u2014 install the OrcaDub agent Skill or dub video via OrcaRouter (model orca/dub). Also runs as an MCP server with no subcommand.",
   "keywords": [
     "orcadub",
     "orcarouter",
     "dubbing",
     "video",
     "translation",
+    "skills",
+    "agents",
     "cli",
     "mcp"
   ],
@@ -18,7 +20,7 @@
   },
   "license": "MIT",
   "bin": {
-    "orcadub-mcp-server": "bin/run.js"
+    "orcadub": "bin/run.js"
   },
   "files": [
     "bin/run.js",

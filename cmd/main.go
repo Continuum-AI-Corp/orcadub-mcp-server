@@ -19,16 +19,16 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "--version", "-v", "version":
-			fmt.Println("orcadub-mcp-server " + serverVersion)
+			fmt.Println("orcadub " + serverVersion)
 			return
 		case "--help", "-h", "help":
 			fmt.Println("orcadub — OrcaDub video dubbing.")
 			fmt.Println("With no subcommand: runs as an MCP stdio server.")
-			fmt.Println("CLI subcommands: health | upload | create | get | download (see `orcadub <cmd> -h`).")
+			fmt.Println("CLI subcommands: health | upload | create | get | download | skill (see `orcadub <cmd> -h`).")
 			fmt.Println("Configuration: ORCADUB_API_KEY environment variable (https://www.orcarouter.ai/console).")
 			fmt.Println("Docs: https://github.com/Continuum-AI-Corp/orcadub-mcp-server")
 			return
-		case "health", "upload", "create", "get", "download":
+		case "health", "upload", "create", "get", "download", "skill":
 			os.Exit(dub.RunCLI(os.Args[1:]))
 		}
 	}

@@ -19,7 +19,7 @@ is synced here manually. Keep the two in behavioural lockstep.
 
 ```
 cmd/                   # entrypoint; serverVersion stamped via goreleaser ldflags
-internal/              # HTTP client (package dub), MCP tool layer, vendored wire types, tests
+internal/              # HTTP client, Skill installer, MCP tool layer, vendored wire types, tests
 npm/                   # npx launcher: postinstall downloads the platform binary
 .goreleaser.yaml       # 6-platform release (bare binaries + tar.gz/zip + ghcr.io docker images)
 Dockerfile             # standalone build; Dockerfile.goreleaser is used at release time
@@ -39,11 +39,11 @@ server.json            # MCP Registry manifest
    own `/content` proxy is SSRF-blocked and its stored presigned URL expires;
    the origin re-signs per request. **Never expose presigned COS URLs**
    (`output_url`) to users — they are bearer-token-free and unrevocable.
-3. **The only runtime configuration is `ORCADUB_API_KEY`.** No other env vars,
-   no config files. A missing key must NOT fail startup: tools register and
-   every call returns the sign-up redirect to
-   `https://www.orcarouter.ai/console` so the agent can walk the user through
-   registration.
+3. **The only dubbing runtime configuration is `ORCADUB_API_KEY`.** No other
+   env vars, no config files. Skill installation does not use the key. A
+   missing key must NOT fail startup: tools register and every dubbing call
+   returns the sign-up redirect to `https://www.orcarouter.ai/console` so the
+   agent can walk the user through registration.
 4. **Tool surface = the gateway's documented dub lifecycle, nothing more.**
    Do not add list / cancel / delete / native `/api/v1/dub/*` tools — the
    gateway does not expose those routes.

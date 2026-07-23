@@ -17,7 +17,7 @@ const OS_MAP = { darwin: "darwin", linux: "linux", win32: "windows" };
 const ARCH_MAP = { x64: "amd64", arm64: "arm64" };
 
 function fail(msg) {
-  console.error(`orcadub-mcp-server install: ${msg}`);
+  console.error(`orcadub CLI install: ${msg}`);
   process.exit(1);
 }
 
@@ -30,7 +30,7 @@ if (!goos || !goarch) {
 const version = pkg.version;
 if (version === "0.0.0") {
   // Local dev install of the unstamped package — nothing to download.
-  console.log("orcadub-mcp-server install: dev version 0.0.0, skipping binary download");
+  console.log("orcadub CLI install: dev version 0.0.0, skipping binary download");
   process.exit(0);
 }
 
@@ -43,7 +43,7 @@ const dest = path.join(destDir, `orcadub-mcp-server${ext}`);
 function fetch(u, redirectsLeft, cb) {
   if (redirectsLeft <= 0) return cb(new Error("too many redirects"));
   https
-    .get(u, { headers: { "User-Agent": "orcadub-mcp-server-npm-installer" } }, (res) => {
+    .get(u, { headers: { "User-Agent": "orcadub-cli-npm-installer" } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume();
         return fetch(res.headers.location, redirectsLeft - 1, cb);
@@ -60,7 +60,7 @@ function fetch(u, redirectsLeft, cb) {
     .on("error", cb);
 }
 
-console.log(`orcadub-mcp-server install: downloading ${asset} ...`);
+console.log(`orcadub CLI install: downloading ${asset} ...`);
 fetch(`${base}/checksums.txt`, 5, (err, sums) => {
   if (err) fail(`cannot fetch checksums.txt: ${err.message}`);
   const line = sums
@@ -84,6 +84,6 @@ fetch(`${base}/checksums.txt`, 5, (err, sums) => {
     }
     fs.mkdirSync(destDir, { recursive: true });
     fs.writeFileSync(dest, bin, { mode: 0o755 });
-    console.log(`orcadub-mcp-server install: verified sha256 and installed ${dest}`);
+    console.log(`orcadub CLI install: verified sha256 and installed ${dest}`);
   });
 });

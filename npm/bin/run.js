@@ -12,8 +12,8 @@ const bin = path.join(__dirname, "..", "vendor", `orcadub-mcp-server${ext}`);
 
 if (!fs.existsSync(bin)) {
   console.error(
-    "orcadub-mcp-server: binary not found — postinstall may have failed.\n" +
-      "Reinstall with: npm rebuild orcadub-mcp-server (or npx -y orcadub-mcp-server@latest)"
+    "orcadub: binary not found — @orcadub/cli postinstall may have failed.\n" +
+      "Reinstall with: npm rebuild @orcadub/cli (or npx -y @orcadub/cli@latest --version)"
   );
   process.exit(1);
 }
@@ -24,6 +24,6 @@ child.on("exit", (code, signal) => {
   process.exit(code === null ? 1 : code);
 });
 child.on("error", (err) => {
-  console.error(`orcadub-mcp-server: ${err.message}`);
+  console.error(`orcadub: ${err.message}`);
   process.exit(1);
 });

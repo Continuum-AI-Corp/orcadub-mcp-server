@@ -1,14 +1,17 @@
 package dub
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -258,5 +261,276 @@ func TestRunCLIUploadDownloadValidation(t *testing.T) {
 	out = captureStdout(t, func() int { return RunCLI([]string{"download", "--video-id", "x"}) })
 	if out.code != 1 || !strings.Contains(out.err, "--dest") {
 		t.Errorf("download without --dest: code=%d err=%q", out.code, out.err)
+	}
+}
+
+func setSkillCLIRuntimeForTest(
+	installer skillInstaller,
+	projectDir string,
+	homeDir string,
+) func() {
+	oldInstaller := skillCLIInstaller
+	oldWorkingDir := skillCLIWorkingDir
+	oldHomeDir := skillCLIHomeDir
+	skillCLIInstaller = func() skillInstaller { return installer }
+	skillCLIWorkingDir = func() (string, error) { return projectDir, nil }
+	skillCLIHomeDir = func() (string, error) { return homeDir, nil }
+	return func() {
+		skillCLIInstaller = oldInstaller
+		skillCLIWorkingDir = oldWorkingDir
+		skillCLIHomeDir = oldHomeDir
+	}
+}
+
+func TestRunCLISkillInstallExplicitPlatformJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	projectDir := t.TempDir()
+	homeDir := t.TempDir()
+	restore := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		projectDir,
+		homeDir,
+	)
+	t.Cleanup(restore)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{
+			"skill", "install",
+			"--platform", "codex",
+			"--scope", "project",
+			"--json",
+		})
+	})
+	if out.code != 0 {
+		t.Fatalf("skill install exit = %d, stderr=%s", out.code, out.err)
+	}
+	var report skillInstallReport
+	if err := json.Unmarshal([]byte(out.out), &report); err != nil {
+		t.Fatalf("stdout is not a skillInstallReport: %v\n%s", err, out.out)
+	}
+	if len(report.Results) != 1 || report.Results[0].Status != skillInstallStatusInstalled {
+		t.Fatalf("report = %#v", report)
+	}
+	destination := filepath.Join(projectDir, ".agents", "skills", "orcadub", "SKILL.md")
+	if report.Results[0].Path != destination {
+		t.Fatalf("path = %q, want %q", report.Results[0].Path, destination)
+	}
+	if got, err := os.ReadFile(destination); err != nil || string(got) != validDubVideoSkill {
+		t.Fatalf("installed Skill = %q, err=%v", got, err)
+	}
+}
+
+func TestRunCLISkillInstallRejectsUnknownPlatform(t *testing.T) {
+	restore := setSkillCLIRuntimeForTest(
+		skillInstaller{client: http.DefaultClient, sourceURL: "http://unused.invalid"},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restore)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install", "--platform", "unknown", "--yes"})
+	})
+	if out.code != 2 {
+		t.Fatalf("exit = %d, want 2; stderr=%s", out.code, out.err)
+	}
+	if !strings.Contains(out.err, `unknown platform "unknown"`) {
+		t.Fatalf("stderr = %q, want unknown platform guidance", out.err)
+	}
+}
+
+func TestRunCLISkillInstallHelp(t *testing.T) {
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install", "--help"})
+	})
+	if out.code != 0 {
+		t.Fatalf("exit = %d, want 0; stderr=%s", out.code, out.err)
+	}
+	if !strings.Contains(out.out, "orcadub skill install") ||
+		!strings.Contains(out.out, "--platform") ||
+		!strings.Contains(out.out, "--scope") {
+		t.Fatalf("stdout lacks install help:\n%s", out.out)
+	}
+	if out.err != "" {
+		t.Fatalf("stderr = %q, want empty", out.err)
+	}
+}
+
+func TestRunCLISkillInstallYesUsesDetectedPlatforms(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	projectDir := t.TempDir()
+	for _, marker := range []string{".claude", ".codex"} {
+		if err := os.MkdirAll(filepath.Join(projectDir, marker), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	restore := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		projectDir,
+		t.TempDir(),
+	)
+	t.Cleanup(restore)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install", "--yes", "--json"})
+	})
+	if out.code != 0 {
+		t.Fatalf("skill install exit = %d, stderr=%s", out.code, out.err)
+	}
+	var report skillInstallReport
+	if err := json.Unmarshal([]byte(out.out), &report); err != nil {
+		t.Fatalf("stdout is not JSON: %v\n%s", err, out.out)
+	}
+	gotPlatforms := make([]string, 0)
+	for _, result := range report.Results {
+		gotPlatforms = append(gotPlatforms, result.Platforms...)
+	}
+	wantPlatforms := []string{"claude", "codex"}
+	if !reflect.DeepEqual(gotPlatforms, wantPlatforms) {
+		t.Fatalf("installed platforms = %v, want %v", gotPlatforms, wantPlatforms)
+	}
+}
+
+func TestSelectSkillInstallPlatformsNonInteractiveDefaultsToAll(t *testing.T) {
+	t.Parallel()
+
+	got, err := selectSkillInstallPlatforms(nil, nil, true, bufio.NewReader(strings.NewReader("")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := allSkillPlatformIDs()
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("selected platforms = %v, want all %v", got, want)
+	}
+}
+
+func TestRunCLISkillInstallGuidesInteractiveSelection(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	projectDir := t.TempDir()
+	homeDir := t.TempDir()
+	restore := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		projectDir,
+		homeDir,
+	)
+	t.Cleanup(restore)
+	oldInput := skillCLIInput
+	skillCLIInput = func() io.Reader { return strings.NewReader("2\n1,3\n") }
+	t.Cleanup(func() { skillCLIInput = oldInput })
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install"})
+	})
+	if out.code != 0 {
+		t.Fatalf("skill install exit = %d, stderr=%s", out.code, out.err)
+	}
+	if !strings.Contains(out.out, "Install scope:") ||
+		!strings.Contains(out.out, "Platforms:") ||
+		!strings.Contains(out.out, "Claude Code") ||
+		!strings.Contains(out.out, "Codex") {
+		t.Fatalf("interactive output lacks guidance:\n%s", out.out)
+	}
+	for _, root := range []string{".claude", ".agents"} {
+		destination := filepath.Join(homeDir, root, "skills", "orcadub", "SKILL.md")
+		if _, err := os.Stat(destination); err != nil {
+			t.Fatalf("selected global target %s: %v", destination, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(projectDir, ".claude")); !os.IsNotExist(err) {
+		t.Fatalf("interactive global install wrote into project; stat err = %v", err)
+	}
+}
+
+func TestRunCLISkillInstallOnlyRequiresSelectedScopeBase(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	t.Run("project does not require home", func(t *testing.T) {
+		projectDir := t.TempDir()
+		restore := setSkillCLIRuntimeForTest(
+			skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+			projectDir,
+			t.TempDir(),
+		)
+		t.Cleanup(restore)
+		skillCLIHomeDir = func() (string, error) {
+			return "", errors.New("injected home lookup failure")
+		}
+
+		out := captureStdout(t, func() int {
+			return RunCLI([]string{
+				"skill", "install",
+				"--platform", "claude",
+				"--scope", "project",
+				"--json",
+			})
+		})
+		if out.code != 0 {
+			t.Fatalf("exit = %d, stderr=%s", out.code, out.err)
+		}
+	})
+
+	t.Run("explicit global does not require cwd", func(t *testing.T) {
+		homeDir := t.TempDir()
+		restore := setSkillCLIRuntimeForTest(
+			skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+			t.TempDir(),
+			homeDir,
+		)
+		t.Cleanup(restore)
+		skillCLIWorkingDir = func() (string, error) {
+			return "", errors.New("injected cwd lookup failure")
+		}
+
+		out := captureStdout(t, func() int {
+			return RunCLI([]string{
+				"skill", "install",
+				"--platform", "claude",
+				"--scope", "global",
+				"--json",
+			})
+		})
+		if out.code != 0 {
+			t.Fatalf("exit = %d, stderr=%s", out.code, out.err)
+		}
+	})
+}
+
+func TestNPMPackageExposesOrcadubCommand(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(filepath.Join("..", "npm", "package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pkg struct {
+		Name string            `json:"name"`
+		Bin  map[string]string `json:"bin"`
+	}
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		t.Fatal(err)
+	}
+	if pkg.Name != "@orcadub/cli" {
+		t.Fatalf("npm package name = %q, want @orcadub/cli", pkg.Name)
+	}
+	if got := pkg.Bin["orcadub"]; got != "bin/run.js" {
+		t.Fatalf("npm bin orcadub = %q, want bin/run.js", got)
+	}
+	if len(pkg.Bin) != 1 {
+		t.Fatalf("npm bin entries = %v, want only orcadub", pkg.Bin)
 	}
 }

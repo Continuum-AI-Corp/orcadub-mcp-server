@@ -40,6 +40,36 @@ Results print as JSON on stdout; errors go to stderr with a non-zero exit.
 
 With no subcommand the same binary runs as an MCP stdio server (`npx -y @orcadub/cli`).
 
+## Install the agent Skill
+
+The [`dub-video` Skill](https://github.com/Continuum-AI-Corp/orcadub-plugin)
+teaches an agent when to dub, which billed parameters it must confirm, and how
+to run the upload → create → poll → download workflow. Install it interactively:
+
+```bash
+npx -y @orcadub/cli skill install
+```
+
+The installer detects existing AI coding platforms and can install the Skill
+for any of the 33 platforms in its Comet-compatible platform catalog. For
+unattended or agent-driven setup, select targets explicitly:
+
+```bash
+# Current project
+npx -y @orcadub/cli skill install \
+  --platform claude --platform codex --scope project --yes
+
+# User-wide Codex installation
+npx -y @orcadub/cli skill install \
+  --platform codex --scope global --yes
+```
+
+Use `--json` for structured output. Existing identical content is left
+unchanged; an existing different Skill is preserved unless `--force` is
+provided. Skill installation needs network access to the canonical
+`orcadub-plugin` repository, but it does not require `ORCADUB_API_KEY` and
+does not contact OrcaRouter.
+
 ## Quick start
 
 ```bash
@@ -190,13 +220,13 @@ go build ./...
 go test ./... -count=1
 ```
 
-Layout: `cmd/` (entrypoint) · `internal/` (HTTP client, tool layer, wire types) · `npm/` (npx launcher that downloads the platform binary from GitHub Releases) · `server.json` (MCP Registry manifest).
+Layout: `cmd/` (entrypoint) · `internal/` (HTTP client, Skill installer, tool layer, wire types) · `npm/` (npx launcher that downloads the platform binary from GitHub Releases) · `server.json` (MCP Registry manifest).
 
 ## Releasing
 
 1. Tag: `git tag v0.1.0 && git push origin v0.1.0`.
 2. GitHub Actions runs goreleaser: linux/darwin/windows × amd64/arm64 binaries + archives + checksums land on the Release.
-3. The `npm-publish` job stamps the tag version into `npm/package.json` and publishes `orcadub-mcp-server` to npm (requires the `NPM_TOKEN` repo secret).
+3. The `npm-publish` job stamps the tag version into `npm/package.json` and publishes `@orcadub/cli` to npm (requires the `NPM_TOKEN` repo secret).
 4. Optionally publish `server.json` to the [MCP Registry](https://registry.modelcontextprotocol.io) with `mcp-publisher publish`.
 
 ## License
