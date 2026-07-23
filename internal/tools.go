@@ -113,16 +113,18 @@ func (t *toolLayer) dubUpload(ctx context.Context, _ *mcp.CallToolRequest, in Up
 	return jsonResult(fo)
 }
 
-//nolint:gocritic // in must be a value type: mcp.AddTool infers the input schema from the In type parameter.
-func (t *toolLayer) dubCreate(ctx context.Context, _ *mcp.CallToolRequest, in CreateInput) (*mcp.CallToolResult, any, error) {
+// buildCreateRequest performs dub_create's input validation and maps
+// CreateInput onto the wire CreateVideoRequest. Shared by the MCP tool
+// (dubCreate) and the CLI create handler so both build an identical body.
+func buildCreateRequest(in *CreateInput) (CreateVideoRequest, error) {
 	hasFile, hasURL := in.FileID != "", in.URL != ""
 	if hasFile == hasURL {
-		return nil, nil, fmt.Errorf("provide exactly one of file_id or url")
+		return CreateVideoRequest{}, fmt.Errorf("provide exactly one of file_id or url")
 	}
 	if hasFile && in.VideoName == "" {
-		return nil, nil, fmt.Errorf("video_name is required when file_id is used (uploaded files carry no title metadata)")
+		return CreateVideoRequest{}, fmt.Errorf("video_name is required when file_id is used (uploaded files carry no title metadata)")
 	}
-	req := CreateVideoRequest{
+	return CreateVideoRequest{
 		SourceLang:             in.SourceLang,
 		TargetLang:             in.TargetLang,
 		VideoPath:              &VideoPath{FileID: in.FileID, URL: in.URL},
@@ -151,6 +153,14 @@ func (t *toolLayer) dubCreate(ctx context.Context, _ *mcp.CallToolRequest, in Cr
 		Resolution:             in.Resolution,
 		Ratio:                  in.Ratio,
 		CompactOutput:          boolStr(in.CompactOutput),
+	}, nil
+}
+
+//nolint:gocritic // in must be a value type: mcp.AddTool infers the input schema from the In type parameter.
+func (t *toolLayer) dubCreate(ctx context.Context, _ *mcp.CallToolRequest, in CreateInput) (*mcp.CallToolResult, any, error) {
+	req, err := buildCreateRequest(&in)
+	if err != nil {
+		return nil, nil, err
 	}
 	v, err := t.client.CreateVideo(ctx, &req)
 	if err != nil {

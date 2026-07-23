@@ -22,11 +22,14 @@ func main() {
 			fmt.Println("orcadub-mcp-server " + serverVersion)
 			return
 		case "--help", "-h", "help":
-			fmt.Println("orcadub-mcp-server — MCP stdio server for OrcaDub video dubbing.")
-			fmt.Println("Runs as an MCP server over stdin/stdout; not meant to be invoked directly.")
+			fmt.Println("orcadub — OrcaDub video dubbing.")
+			fmt.Println("With no subcommand: runs as an MCP stdio server.")
+			fmt.Println("CLI subcommands: health | upload | create | get | download (see `orcadub <cmd> -h`).")
 			fmt.Println("Configuration: ORCADUB_API_KEY environment variable (https://www.orcarouter.ai/console).")
 			fmt.Println("Docs: https://github.com/Continuum-AI-Corp/orcadub-mcp-server")
 			return
+		case "health", "upload", "create", "get", "download":
+			os.Exit(dub.RunCLI(os.Args[1:]))
 		}
 	}
 	// A missing ORCADUB_API_KEY does not block startup: tools register and
