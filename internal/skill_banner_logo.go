@@ -20,6 +20,11 @@ var skillBannerLogoColor string
 var skillBannerLogoPlain string
 
 func skillBannerLogoRows(color bool) []string {
+	rows, _ := skillBannerLogoRowsWithValidity(color)
+	return rows
+}
+
+func skillBannerLogoRowsWithValidity(color bool) ([]string, bool) {
 	value := skillBannerLogoPlain
 	if color {
 		value = skillBannerLogoColor
@@ -31,12 +36,12 @@ func skillBannerLogoRows(color bool) []string {
 				rows[index] = strings.ReplaceAll(rows[index], ".", " ")
 			}
 		}
-		return rows
+		return rows, true
 	}
 	blank := strings.Repeat(" ", skillBannerLogoWidth)
 	rows = make([]string, skillBannerHeight)
 	for index := range rows {
 		rows[index] = blank
 	}
-	return rows
+	return rows, false
 }

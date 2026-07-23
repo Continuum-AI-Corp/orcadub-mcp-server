@@ -5,7 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"unicode/utf8"
+
+	"charm.land/lipgloss/v2"
 )
 
 var skillBannerANSI = regexp.MustCompile(`\x1b\[[0-9;]*m`)
@@ -23,7 +24,7 @@ func TestSkillBannerLogoRows(t *testing.T) {
 			t.Fatalf("color=%v row count=%d, want 20", color, len(rows))
 		}
 		for index, row := range rows {
-			if width := utf8.RuneCountInString(visibleSkillBannerText(row)); width != 40 {
+			if width := lipgloss.Width(row); width != 40 {
 				t.Fatalf("color=%v row=%d width=%d, want 40", color, index, width)
 			}
 		}
@@ -58,12 +59,12 @@ func TestSkillBannerWordmarkRows(t *testing.T) {
 		visibleRows := make([][]rune, len(rows))
 		for index, row := range rows {
 			visibleRows[index] = []rune(visibleSkillBannerText(row))
-			if len(visibleRows[index]) != skillBannerWordWidth {
+			if width := lipgloss.Width(row); width != skillBannerWordWidth {
 				t.Fatalf(
 					"color=%v row=%d width=%d, want %d",
 					color,
 					index,
-					len(visibleRows[index]),
+					width,
 					skillBannerWordWidth,
 				)
 			}
@@ -95,7 +96,7 @@ func TestRenderSkillBannerLayout(t *testing.T) {
 			t.Fatalf("color=%v row count=%d, want %d", color, len(rows), skillBannerHeight)
 		}
 		for index, row := range rows {
-			width := utf8.RuneCountInString(visibleSkillBannerText(row))
+			width := lipgloss.Width(row)
 			if width != skillBannerTotalWidth {
 				t.Fatalf(
 					"color=%v row=%d width=%d, want %d",
@@ -113,6 +114,36 @@ func TestRenderSkillBannerLayout(t *testing.T) {
 		}
 		if color != strings.Contains(value, "\x1b[") {
 			t.Fatalf("color=%v ANSI presence mismatch", color)
+		}
+	}
+}
+
+func TestRenderSkillBannerFallsBackToPlainWhenColorAssetIsInvalid(t *testing.T) {
+	original := skillBannerLogoColor
+	skillBannerLogoColor = "invalid\n"
+	t.Cleanup(func() {
+		skillBannerLogoColor = original
+	})
+
+	var output bytes.Buffer
+	renderSkillBanner(&output, true)
+	value := output.String()
+	if strings.Contains(value, "\x1b[") {
+		t.Fatal("fallback banner contains ANSI")
+	}
+
+	rows := strings.Split(strings.TrimSuffix(value, "\n"), "\n")
+	if len(rows) != skillBannerHeight {
+		t.Fatalf("row count=%d, want %d", len(rows), skillBannerHeight)
+	}
+	for index, row := range rows {
+		if width := lipgloss.Width(row); width != skillBannerTotalWidth {
+			t.Fatalf(
+				"row=%d width=%d, want %d",
+				index,
+				width,
+				skillBannerTotalWidth,
+			)
 		}
 	}
 }

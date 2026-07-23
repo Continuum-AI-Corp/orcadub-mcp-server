@@ -51,7 +51,8 @@ func skillBannerWordmarkRows(color bool) []string {
 }
 
 func renderSkillBanner(writer io.Writer, color bool) {
-	logoRows := skillBannerLogoRows(color)
+	logoRows, logoValid := skillBannerLogoRowsWithValidity(color)
+	color = color && logoValid
 	wordmarkRows := skillBannerWordmarkRows(color)
 	gap := strings.Repeat(" ", skillBannerGapWidth)
 	for index := 0; index < skillBannerHeight; index++ {
