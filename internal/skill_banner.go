@@ -6,10 +6,12 @@ import (
 )
 
 const (
-	skillBannerWord  = "ORCADUB"
-	skillBannerBlue  = "\x1b[94m"
-	skillBannerCyan  = "\x1b[96m"
-	skillBannerReset = "\x1b[0m"
+	skillBannerWord      = "ORCADUB"
+	skillBannerHeight    = 15
+	skillBannerWordWidth = 34
+	skillBannerBlue      = "\x1b[94m"
+	skillBannerCyan      = "\x1b[96m"
+	skillBannerReset     = "\x1b[0m"
 )
 
 var skillBannerWordmarkGlyphs = map[rune][7]string{
@@ -22,7 +24,7 @@ var skillBannerWordmarkGlyphs = map[rune][7]string{
 	'B': {"███ ", "█  █", "█  █", "███ ", "█  █", "█  █", "███ "},
 }
 
-var skillBannerWordmarkRowRepeats = [7]int{3, 3, 3, 3, 3, 3, 2}
+var skillBannerWordmarkRowRepeats = [7]int{2, 2, 2, 3, 2, 2, 2}
 
 func skillBannerWordmarkRows(color bool) []string {
 	rows := make([]string, 0, skillBannerHeight)
@@ -51,15 +53,8 @@ func skillBannerWordmarkRows(color bool) []string {
 }
 
 func renderSkillBanner(writer io.Writer, color bool) {
-	logoRows, logoValid := skillBannerLogoRowsWithValidity(color)
-	color = color && logoValid
-	wordmarkRows := skillBannerWordmarkRows(color)
-	gap := strings.Repeat(" ", skillBannerGapWidth)
-	for index := 0; index < skillBannerHeight; index++ {
-		_, _ = io.WriteString(writer, logoRows[index]+gap+wordmarkRows[index])
-		if color {
-			_, _ = io.WriteString(writer, skillBannerReset)
-		}
+	for _, row := range skillBannerWordmarkRows(color) {
+		_, _ = io.WriteString(writer, row)
 		_, _ = io.WriteString(writer, "\n")
 	}
 }
