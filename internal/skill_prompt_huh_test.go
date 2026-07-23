@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 )
 
 func TestNewSkillPromptKeyMap(t *testing.T) {
@@ -116,12 +117,32 @@ func TestSkillPromptRejectsEmptyPlatforms(t *testing.T) {
 func TestOrcaDubSkillThemeUsesCheckboxPrefixes(t *testing.T) {
 	t.Parallel()
 
-	styles := newOrcaDubSkillTheme().Theme(true)
+	styles := newOrcaDubSkillTheme(true).Theme(true)
 	if got := styles.Focused.SelectedPrefix.Value(); got != "[✓] " {
 		t.Fatalf("selected prefix = %q", got)
 	}
 	if got := styles.Focused.UnselectedPrefix.Value(); got != "[ ] " {
 		t.Fatalf("unselected prefix = %q", got)
+	}
+}
+
+func TestOrcaDubSkillThemeDisablesColors(t *testing.T) {
+	t.Parallel()
+
+	styles := newOrcaDubSkillTheme(false).Theme(true)
+	for name, style := range map[string]lipgloss.Style{
+		"title":             styles.Focused.Title,
+		"description":       styles.Focused.Description,
+		"selected prefix":   styles.Focused.SelectedPrefix,
+		"unselected prefix": styles.Focused.UnselectedPrefix,
+		"selected option":   styles.Focused.SelectedOption,
+		"help key":          styles.Help.ShortKey,
+		"help description":  styles.Help.ShortDesc,
+		"help separator":    styles.Help.ShortSeparator,
+	} {
+		if foreground := style.GetForeground(); foreground != (lipgloss.NoColor{}) {
+			t.Errorf("%s foreground = %v, want none", name, foreground)
+		}
 	}
 }
 

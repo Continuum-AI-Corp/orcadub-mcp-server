@@ -384,7 +384,8 @@ func resolveInteractiveSkillSelection(
 	}
 
 	detected := detectSkillPlatforms(detectionDir)
-	renderSkillBanner(os.Stdout, skillCLIColorEnabled(skillCLILookupEnv))
+	colorEnabled := skillCLIColorEnabled(skillCLILookupEnv)
+	renderSkillBanner(os.Stdout, colorEnabled)
 	result, err := skillCLIPromptRunner().Run(&skillPromptRequest{
 		Language:        language,
 		AskLanguage:     options.languageValue == "",
@@ -392,6 +393,7 @@ func resolveInteractiveSkillSelection(
 		AskScope:        options.scopeValue == "",
 		PlatformOptions: orderedSkillPromptPlatforms(detected),
 		AskPlatforms:    true,
+		ColorEnabled:    colorEnabled,
 		Input:           os.Stdin,
 		Output:          os.Stdout,
 	})

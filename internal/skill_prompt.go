@@ -27,6 +27,7 @@ type skillPromptRequest struct {
 	AskScope        bool
 	PlatformOptions []skillPromptPlatform
 	AskPlatforms    bool
+	ColorEnabled    bool
 	Input           io.Reader
 	Output          io.Writer
 }

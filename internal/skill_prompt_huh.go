@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"unicode/utf8"
 
+	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
@@ -121,30 +122,41 @@ func newSkillPlatformValidator(language skillLanguage) func([]string) error {
 	}
 }
 
-func newOrcaDubSkillTheme() huh.Theme {
+func newOrcaDubSkillTheme(colorEnabled bool) huh.Theme {
 	return huh.ThemeFunc(func(isDark bool) *huh.Styles {
 		styles := huh.ThemeBase(isDark)
-		lightDark := lipgloss.LightDark(isDark)
-		blue := lipgloss.Color("#007BFF")
-		cyan := lipgloss.Color("#53C7FF")
-		normal := lightDark(lipgloss.Color("#E7F4FF"), lipgloss.Color("#18324A"))
-		muted := lightDark(lipgloss.Color("#7A869A"), lipgloss.Color("#617187"))
-		green := lipgloss.Color("#23C483")
-		red := lipgloss.Color("#FF5D73")
-
-		styles.Focused.Base = styles.Focused.Base.BorderForeground(blue)
 		styles.Focused.Card = styles.Focused.Base
-		styles.Focused.Title = styles.Focused.Title.Foreground(cyan).Bold(true)
-		styles.Focused.Description = styles.Focused.Description.Foreground(muted)
-		styles.Focused.SelectSelector = styles.Focused.SelectSelector.Foreground(cyan).SetString("❯ ")
-		styles.Focused.Option = styles.Focused.Option.Foreground(normal)
-		styles.Focused.MultiSelectSelector = styles.Focused.MultiSelectSelector.Foreground(cyan).SetString("❯ ")
-		styles.Focused.SelectedPrefix = styles.Focused.SelectedPrefix.Foreground(green).SetString("[✓] ")
-		styles.Focused.UnselectedPrefix = styles.Focused.UnselectedPrefix.Foreground(muted).SetString("[ ] ")
-		styles.Focused.SelectedOption = styles.Focused.SelectedOption.Foreground(green)
-		styles.Focused.UnselectedOption = styles.Focused.UnselectedOption.Foreground(normal)
-		styles.Focused.ErrorIndicator = styles.Focused.ErrorIndicator.Foreground(red)
-		styles.Focused.ErrorMessage = styles.Focused.ErrorMessage.Foreground(red)
+		styles.Focused.Title = styles.Focused.Title.Bold(true)
+		styles.Focused.SelectSelector = styles.Focused.SelectSelector.SetString("❯ ")
+		styles.Focused.MultiSelectSelector = styles.Focused.MultiSelectSelector.SetString("❯ ")
+		styles.Focused.SelectedPrefix = styles.Focused.SelectedPrefix.SetString("[✓] ")
+		styles.Focused.UnselectedPrefix = styles.Focused.UnselectedPrefix.SetString("[ ] ")
+
+		if colorEnabled {
+			lightDark := lipgloss.LightDark(isDark)
+			blue := lipgloss.Color("#007BFF")
+			cyan := lipgloss.Color("#53C7FF")
+			normal := lightDark(lipgloss.Color("#E7F4FF"), lipgloss.Color("#18324A"))
+			muted := lightDark(lipgloss.Color("#7A869A"), lipgloss.Color("#617187"))
+			green := lipgloss.Color("#23C483")
+			red := lipgloss.Color("#FF5D73")
+
+			styles.Focused.Base = styles.Focused.Base.BorderForeground(blue)
+			styles.Focused.Card = styles.Focused.Base
+			styles.Focused.Title = styles.Focused.Title.Foreground(cyan)
+			styles.Focused.Description = styles.Focused.Description.Foreground(muted)
+			styles.Focused.SelectSelector = styles.Focused.SelectSelector.Foreground(cyan)
+			styles.Focused.Option = styles.Focused.Option.Foreground(normal)
+			styles.Focused.MultiSelectSelector = styles.Focused.MultiSelectSelector.Foreground(cyan)
+			styles.Focused.SelectedPrefix = styles.Focused.SelectedPrefix.Foreground(green)
+			styles.Focused.UnselectedPrefix = styles.Focused.UnselectedPrefix.Foreground(muted)
+			styles.Focused.SelectedOption = styles.Focused.SelectedOption.Foreground(green)
+			styles.Focused.UnselectedOption = styles.Focused.UnselectedOption.Foreground(normal)
+			styles.Focused.ErrorIndicator = styles.Focused.ErrorIndicator.Foreground(red)
+			styles.Focused.ErrorMessage = styles.Focused.ErrorMessage.Foreground(red)
+		} else {
+			styles.Help = help.Styles{}
+		}
 
 		styles.Blurred = styles.Focused
 		styles.Blurred.Base = styles.Focused.Base.BorderStyle(lipgloss.HiddenBorder())
@@ -226,7 +238,7 @@ func (huhSkillPromptRunner) Run(request *skillPromptRequest) (skillPromptResult,
 
 func runSkillPromptForm(field huh.Field, request *skillPromptRequest, language skillLanguage) error {
 	form := huh.NewForm(huh.NewGroup(field)).
-		WithTheme(newOrcaDubSkillTheme()).
+		WithTheme(newOrcaDubSkillTheme(request.ColorEnabled)).
 		WithKeyMap(newSkillPromptKeyMap(language))
 	if request.Input != nil {
 		form = form.WithInput(request.Input)

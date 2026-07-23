@@ -385,6 +385,9 @@ func TestRunCLISkillInstallTUI(t *testing.T) {
 	if !prompt.request.AskLanguage || !prompt.request.AskScope || !prompt.request.AskPlatforms {
 		t.Fatalf("prompt request = %+v", prompt.request)
 	}
+	if !prompt.request.ColorEnabled {
+		t.Fatal("prompt color is disabled for a supported terminal")
+	}
 	if !strings.Contains(out.out, "ORCA//DUB") {
 		t.Fatalf("stdout lacks banner:\n%s", out.out)
 	}
@@ -427,6 +430,9 @@ func TestRunCLISkillInstallTUIHonorsNoColor(t *testing.T) {
 	}
 	if !strings.Contains(out.out, "ORCA//DUB") || strings.Contains(out.out, "\x1b[") {
 		t.Fatalf("NO_COLOR banner output = %q", out.out)
+	}
+	if prompt.request.ColorEnabled {
+		t.Fatal("NO_COLOR prompt request still enables colors")
 	}
 }
 

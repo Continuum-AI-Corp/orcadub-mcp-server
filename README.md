@@ -75,10 +75,11 @@ npx -y @orcadub/cli skill install \
 
 Use `--yes` to accept detected platforms (or all platforms when none are
 detected) without opening the installer. Use `--json` for decoration-free
-structured output. Existing identical content is left unchanged; an existing
-different Skill is preserved unless `--force` is provided. Skill installation
-needs network access to the canonical `orcadub-plugin` repository, but it does
-not require `ORCADUB_API_KEY` and does not contact OrcaRouter.
+structured output. Set `NO_COLOR` (or use `TERM=dumb`) for a color-free
+installer. Existing identical content is left unchanged; an existing different
+Skill is preserved unless `--force` is provided. Skill installation needs
+network access to the canonical `orcadub-plugin` repository, but it does not
+require `ORCADUB_API_KEY` and does not contact OrcaRouter.
 
 ## Quick start
 
