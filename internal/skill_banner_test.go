@@ -72,28 +72,36 @@ func TestSkillBannerWordmarkRows(t *testing.T) {
 	}
 }
 
-func TestRenderSkillBannerPlain(t *testing.T) {
+func TestRenderSkillBannerLayout(t *testing.T) {
 	t.Parallel()
 
-	var out bytes.Buffer
-	renderSkillBanner(&out, false)
-	got := out.String()
-	if !strings.Contains(got, "ORCA//DUB") ||
-		!strings.Contains(got, "SKILL INSTALLER / 技能安装器") {
-		t.Fatalf("banner = %q", got)
-	}
-	if strings.Contains(got, "\x1b[") {
-		t.Fatalf("plain banner contains ANSI: %q", got)
-	}
-}
-
-func TestRenderSkillBannerColor(t *testing.T) {
-	t.Parallel()
-
-	var out bytes.Buffer
-	renderSkillBanner(&out, true)
-	got := out.String()
-	if !strings.Contains(got, "\x1b[") || !strings.Contains(got, "ORCA//DUB") {
-		t.Fatalf("colored banner = %q", got)
+	for _, color := range []bool{false, true} {
+		var output bytes.Buffer
+		renderSkillBanner(&output, color)
+		value := output.String()
+		rows := strings.Split(strings.TrimSuffix(value, "\n"), "\n")
+		if len(rows) != skillBannerHeight {
+			t.Fatalf("color=%v row count=%d, want %d", color, len(rows), skillBannerHeight)
+		}
+		for index, row := range rows {
+			width := utf8.RuneCountInString(visibleSkillBannerText(row))
+			if width != skillBannerTotalWidth {
+				t.Fatalf(
+					"color=%v row=%d width=%d, want %d",
+					color,
+					index,
+					width,
+					skillBannerTotalWidth,
+				)
+			}
+		}
+		if strings.Contains(value, "AI DUBBING CLI") ||
+			strings.Contains(value, "SKILL INSTALLER") ||
+			strings.Contains(value, "技能安装器") {
+			t.Fatalf("color=%v banner contains removed subtitle", color)
+		}
+		if color != strings.Contains(value, "\x1b[") {
+			t.Fatalf("color=%v ANSI presence mismatch", color)
+		}
 	}
 }

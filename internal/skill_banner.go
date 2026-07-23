@@ -1,7 +1,6 @@
 package dub
 
 import (
-	"fmt"
 	"io"
 	"strings"
 )
@@ -24,14 +23,6 @@ var skillBannerWordmarkGlyphs = map[rune][7]string{
 }
 
 var skillBannerWordmarkRowRepeats = [7]int{3, 3, 3, 3, 3, 3, 2}
-
-const skillBannerPlain = `          ▄▄▖
-     ▄██▀▀███▙
-   ▄██▛  ▄████▌   ORCA//DUB
-   ▀███▄███▀▀     AI DUBBING CLI
-      ▀█▀    ◌━━━━━━━━◌
-       SKILL INSTALLER / 技能安装器
-`
 
 func skillBannerWordmarkRows(color bool) []string {
 	rows := make([]string, 0, skillBannerHeight)
@@ -59,31 +50,15 @@ func skillBannerWordmarkRows(color bool) []string {
 	return rows
 }
 
-func renderSkillBanner(w io.Writer, color bool) {
-	if !color {
-		_, _ = io.WriteString(w, skillBannerPlain)
-		return
+func renderSkillBanner(writer io.Writer, color bool) {
+	logoRows := skillBannerLogoRows(color)
+	wordmarkRows := skillBannerWordmarkRows(color)
+	gap := strings.Repeat(" ", skillBannerGapWidth)
+	for index := 0; index < skillBannerHeight; index++ {
+		_, _ = io.WriteString(writer, logoRows[index]+gap+wordmarkRows[index])
+		if color {
+			_, _ = io.WriteString(writer, skillBannerReset)
+		}
+		_, _ = io.WriteString(writer, "\n")
 	}
-	const (
-		blue  = "\x1b[38;2;0;123;255m"
-		cyan  = "\x1b[38;2;83;199;255m"
-		reset = "\x1b[0m"
-	)
-	_, _ = fmt.Fprintf(
-		w,
-		"%s          ▄▄▖\n"+
-			"     ▄██▀▀███▙\n"+
-			"   ▄██▛  ▄████▌   %sORCA//DUB%s\n"+
-			"%s   ▀███▄███▀▀     %sAI DUBBING CLI%s\n"+
-			"      ▀█▀    ◌━━━━━━━━◌\n"+
-			"       %sSKILL INSTALLER / 技能安装器%s\n",
-		blue,
-		cyan,
-		blue,
-		blue,
-		cyan,
-		blue,
-		cyan,
-		reset,
-	)
 }
