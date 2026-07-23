@@ -2,6 +2,7 @@ package dub
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -17,6 +18,27 @@ type skillPromptPlatform struct {
 	Name     string
 	Detected bool
 	Selected bool
+}
+
+type skillPromptRequest struct {
+	Language        skillLanguage
+	AskLanguage     bool
+	Scope           skillInstallScope
+	AskScope        bool
+	PlatformOptions []skillPromptPlatform
+	AskPlatforms    bool
+	Input           io.Reader
+	Output          io.Writer
+}
+
+type skillPromptResult struct {
+	Language    skillLanguage
+	Scope       skillInstallScope
+	PlatformIDs []string
+}
+
+type skillPromptRunner interface {
+	Run(skillPromptRequest) (skillPromptResult, error)
 }
 
 var popularSkillPlatformIDs = []string{
