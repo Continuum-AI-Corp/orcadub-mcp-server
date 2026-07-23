@@ -36,6 +36,42 @@ func TestSkillBannerLogoRows(t *testing.T) {
 	}
 }
 
+func TestSkillBannerWordmarkRows(t *testing.T) {
+	t.Parallel()
+
+	for _, color := range []bool{false, true} {
+		rows := skillBannerWordmarkRows(color)
+		if len(rows) != skillBannerHeight {
+			t.Fatalf("color=%v row count=%d, want %d", color, len(rows), skillBannerHeight)
+		}
+		visibleRows := make([][]rune, len(rows))
+		for index, row := range rows {
+			visibleRows[index] = []rune(visibleSkillBannerText(row))
+			if len(visibleRows[index]) != skillBannerWordWidth {
+				t.Fatalf(
+					"color=%v row=%d width=%d, want %d",
+					color,
+					index,
+					len(visibleRows[index]),
+					skillBannerWordWidth,
+				)
+			}
+		}
+		for glyphIndex := range []rune("ORCADUB") {
+			start := glyphIndex * 5
+			hasInk := false
+			for _, row := range visibleRows {
+				for _, cell := range row[start : start+4] {
+					hasInk = hasInk || cell != ' '
+				}
+			}
+			if !hasInk {
+				t.Fatalf("color=%v glyph %d has no ink", color, glyphIndex)
+			}
+		}
+	}
+}
+
 func TestRenderSkillBannerPlain(t *testing.T) {
 	t.Parallel()
 
