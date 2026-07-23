@@ -15,6 +15,8 @@ const (
 	skillTextHelpMove
 	skillTextHelpToggle
 	skillTextHelpFilter
+	skillTextHelpApplyFilter
+	skillTextHelpClearFilter
 	skillTextHelpAll
 	skillTextHelpNone
 	skillTextHelpConfirm
@@ -27,6 +29,7 @@ const (
 	skillTextStatusConflict
 	skillTextStatusError
 	skillTextConflictGuidance
+	skillTextInstallFailed
 	skillTextNonTTYGuidance
 )
 
@@ -44,6 +47,8 @@ var skillTranslations = map[skillLanguage]map[skillTextKey]string{
 		skillTextHelpMove:            "move",
 		skillTextHelpToggle:          "toggle",
 		skillTextHelpFilter:          "filter",
+		skillTextHelpApplyFilter:     "apply filter",
+		skillTextHelpClearFilter:     "clear filter",
 		skillTextHelpAll:             "all",
 		skillTextHelpNone:            "none",
 		skillTextHelpConfirm:         "confirm",
@@ -56,6 +61,7 @@ var skillTranslations = map[skillLanguage]map[skillTextKey]string{
 		skillTextStatusConflict:      "conflict",
 		skillTextStatusError:         "error",
 		skillTextConflictGuidance:    "kept existing file; rerun with --force",
+		skillTextInstallFailed:       "OrcaDub Skill installation failed",
 		skillTextNonTTYGuidance:      "interactive input requires a terminal; use --lang, --scope, --platform, or --yes",
 	},
 	skillLanguageZH: {
@@ -71,6 +77,8 @@ var skillTranslations = map[skillLanguage]map[skillTextKey]string{
 		skillTextHelpMove:            "移动",
 		skillTextHelpToggle:          "勾选",
 		skillTextHelpFilter:          "搜索",
+		skillTextHelpApplyFilter:     "应用搜索",
+		skillTextHelpClearFilter:     "清除搜索",
 		skillTextHelpAll:             "全选",
 		skillTextHelpNone:            "清空",
 		skillTextHelpConfirm:         "确认",
@@ -83,6 +91,7 @@ var skillTranslations = map[skillLanguage]map[skillTextKey]string{
 		skillTextStatusConflict:      "冲突",
 		skillTextStatusError:         "错误",
 		skillTextConflictGuidance:    "已保留现有文件；使用 --force 重新运行可覆盖",
+		skillTextInstallFailed:       "OrcaDub Skill 安装失败",
 		skillTextNonTTYGuidance:      "交互式安装需要终端；请使用 --lang、--scope、--platform 或 --yes",
 	},
 }

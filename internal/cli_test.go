@@ -304,13 +304,48 @@ func setSkillPromptRuntimeForTest(
 	oldPromptRunner := skillCLIPromptRunner
 	oldIsTerminal := skillCLIIsTerminal
 	oldGetenv := skillCLIGetenv
+	oldLookupEnv := skillCLILookupEnv
 	skillCLIPromptRunner = func() skillPromptRunner { return runner }
 	skillCLIIsTerminal = func() bool { return isTerminal }
-	skillCLIGetenv = func(string) string { return locale }
+	skillCLIGetenv = func(key string) string {
+		switch key {
+		case "LC_ALL", "LC_MESSAGES", "LANG":
+			return locale
+		default:
+			return ""
+		}
+	}
+	skillCLILookupEnv = func(string) (string, bool) { return "", false }
 	return func() {
 		skillCLIPromptRunner = oldPromptRunner
 		skillCLIIsTerminal = oldIsTerminal
 		skillCLIGetenv = oldGetenv
+		skillCLILookupEnv = oldLookupEnv
+	}
+}
+
+func TestSkillCLIColorEnabled(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		env  map[string]string
+		want bool
+	}{
+		{name: "supported terminal", env: map[string]string{"TERM": "xterm-256color"}, want: true},
+		{name: "NO_COLOR", env: map[string]string{"NO_COLOR": "", "TERM": "xterm-256color"}, want: false},
+		{name: "dumb terminal", env: map[string]string{"TERM": "dumb"}, want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			lookupEnv := func(key string) (string, bool) {
+				value, ok := test.env[key]
+				return value, ok
+			}
+			if got := skillCLIColorEnabled(lookupEnv); got != test.want {
+				t.Fatalf("enabled = %v, want %v", got, test.want)
+			}
+		})
 	}
 }
 
@@ -355,6 +390,43 @@ func TestRunCLISkillInstallTUI(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(projectDir, ".agents", "skills", "orcadub", "SKILL.md")); err != nil {
 		t.Fatalf("Codex Skill was not installed: %v", err)
+	}
+}
+
+func TestRunCLISkillInstallTUIHonorsNoColor(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	prompt := &fakeSkillPromptRunner{result: skillPromptResult{
+		Language:    skillLanguageEN,
+		Scope:       skillInstallProject,
+		PlatformIDs: []string{"codex"},
+	}}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, true, "en_US.UTF-8")
+	t.Cleanup(restorePrompt)
+	skillCLILookupEnv = func(key string) (string, bool) {
+		if key == "NO_COLOR" {
+			return "", true
+		}
+		return "", false
+	}
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install"})
+	})
+	if out.code != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if !strings.Contains(out.out, "ORCA//DUB") || strings.Contains(out.out, "\x1b[") {
+		t.Fatalf("NO_COLOR banner output = %q", out.out)
 	}
 }
 
@@ -478,6 +550,73 @@ func TestRunCLISkillInstallCancellation(t *testing.T) {
 	}
 	if contacted {
 		t.Fatal("installer source was contacted after cancellation")
+	}
+}
+
+func TestRunCLISkillInstallLocalizesConfirmedFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "source unavailable", http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	prompt := &fakeSkillPromptRunner{result: skillPromptResult{
+		Language:    skillLanguageZH,
+		Scope:       skillInstallProject,
+		PlatformIDs: []string{"codex"},
+	}}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, true, "zh_CN.UTF-8")
+	t.Cleanup(restorePrompt)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install"})
+	})
+	if out.code != 1 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if !strings.Contains(out.err, "OrcaDub Skill 安装失败") ||
+		!strings.Contains(out.err, "HTTP 502") {
+		t.Fatalf("stderr lacks localized context and source detail: %q", out.err)
+	}
+}
+
+func TestRunCLISkillInstallJSONFailureStaysUnadorned(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "source unavailable", http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+
+	restore := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restore)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{
+			"skill", "install",
+			"--platform", "codex",
+			"--scope", "project",
+			"--lang", "zh",
+			"--json",
+		})
+	})
+	if out.code != 1 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if strings.Contains(out.err, "OrcaDub Skill 安装失败") ||
+		strings.Contains(out.err, "ORCA//DUB") ||
+		strings.Contains(out.err, "\x1b[") {
+		t.Fatalf("JSON-mode stderr contains presentation: %q", out.err)
+	}
+	if !strings.Contains(out.err, "HTTP 502") {
+		t.Fatalf("stderr lacks source detail: %q", out.err)
 	}
 }
 

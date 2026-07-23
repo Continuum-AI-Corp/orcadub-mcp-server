@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 )
@@ -26,6 +27,66 @@ func TestNewSkillPromptKeyMap(t *testing.T) {
 	if !slices.Contains(keys.MultiSelect.Filter.Keys(), "/") {
 		t.Fatal("filter does not bind /")
 	}
+}
+
+func TestNewSkillPromptFilterHelpLocalized(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		language skillLanguage
+		apply    string
+		clear    string
+	}{
+		{language: skillLanguageEN, apply: "apply filter", clear: "clear filter"},
+		{language: skillLanguageZH, apply: "应用搜索", clear: "清除搜索"},
+	}
+	for _, test := range tests {
+		keys := newSkillPromptKeyMap(test.language)
+		if got := keys.MultiSelect.SetFilter.Help().Desc; got != test.apply {
+			t.Errorf("language=%s apply help=%q", test.language, got)
+		}
+		if got := keys.MultiSelect.ClearFilter.Help().Desc; got != test.clear {
+			t.Errorf("language=%s clear help=%q", test.language, got)
+		}
+	}
+}
+
+func TestClearableSkillMultiSelectShowsLocalizedFilterStateHelp(t *testing.T) {
+	t.Parallel()
+
+	selected := []string{"codex"}
+	multiSelect := huh.NewMultiSelect[string]().
+		Options(huh.NewOption("Codex", "codex")).
+		Value(&selected).
+		Filterable(true)
+	field := &clearableSkillMultiSelect{Field: multiSelect}
+	field.WithKeyMap(newSkillPromptKeyMap(skillLanguageZH))
+	field.Focus()
+
+	_, _ = field.Update(skillPromptKeyPress("/"))
+	if !helpBindingsContain(field.KeyBinds(), "应用搜索") {
+		t.Fatal("filter-entry help lacks localized apply text")
+	}
+	for _, msg := range []tea.KeyPressMsg{
+		skillPromptKeyPress("c"),
+		skillPromptKeyPress("o"),
+		skillPromptKeyPress("d"),
+		tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}),
+	} {
+		_, _ = field.Update(msg)
+	}
+	if !helpBindingsContain(field.KeyBinds(), "清除搜索") {
+		t.Fatal("active-filter help lacks localized clear text")
+	}
+}
+
+func helpBindingsContain(bindings []key.Binding, description string) bool {
+	for _, binding := range bindings {
+		if binding.Enabled() && binding.Help().Desc == description {
+			return true
+		}
+	}
+	return false
 }
 
 func TestSkillPromptOptionsIncludeDetectedLabelAndDefaults(t *testing.T) {
@@ -49,6 +110,18 @@ func TestSkillPromptRejectsEmptyPlatforms(t *testing.T) {
 	err := validatePromptPlatforms(skillLanguageEN, nil)
 	if err == nil || err.Error() != "Select at least one platform" {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestOrcaDubSkillThemeUsesCheckboxPrefixes(t *testing.T) {
+	t.Parallel()
+
+	styles := newOrcaDubSkillTheme().Theme(true)
+	if got := styles.Focused.SelectedPrefix.Value(); got != "[✓] " {
+		t.Fatalf("selected prefix = %q", got)
+	}
+	if got := styles.Focused.UnselectedPrefix.Value(); got != "[ ] " {
+		t.Fatalf("unselected prefix = %q", got)
 	}
 }
 

@@ -158,7 +158,8 @@ var (
 	skillCLIIsTerminal   = func() bool {
 		return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
 	}
-	skillCLIGetenv = os.Getenv
+	skillCLIGetenv    = os.Getenv
+	skillCLILookupEnv = os.LookupEnv
 )
 
 type skillCLIOptions struct {
@@ -297,6 +298,9 @@ func runSkillCLI(args []string) int {
 		options.force,
 	)
 	if err != nil {
+		if !options.jsonOutput {
+			err = fmt.Errorf("%s: %w", skillText(selection.Language, skillTextInstallFailed), err)
+		}
 		return fail(err)
 	}
 	if options.jsonOutput {
@@ -380,7 +384,7 @@ func resolveInteractiveSkillSelection(
 	}
 
 	detected := detectSkillPlatforms(detectionDir)
-	renderSkillBanner(os.Stdout, true)
+	renderSkillBanner(os.Stdout, skillCLIColorEnabled(skillCLILookupEnv))
 	result, err := skillCLIPromptRunner().Run(&skillPromptRequest{
 		Language:        language,
 		AskLanguage:     options.languageValue == "",
@@ -400,6 +404,14 @@ func resolveInteractiveSkillSelection(
 
 	result.PlatformIDs, err = validateSkillPlatformIDs(result.PlatformIDs)
 	return result, errorExitCode(err, 2), err
+}
+
+func skillCLIColorEnabled(lookupEnv func(string) (string, bool)) bool {
+	if _, disabled := lookupEnv("NO_COLOR"); disabled {
+		return false
+	}
+	termName, _ := lookupEnv("TERM")
+	return !strings.EqualFold(strings.TrimSpace(termName), "dumb")
 }
 
 func errorExitCode(err error, code int) int {

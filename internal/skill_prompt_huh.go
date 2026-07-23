@@ -57,6 +57,16 @@ func newSkillPromptKeyMap(language skillLanguage) *huh.KeyMap {
 		key.WithKeys("/"),
 		key.WithHelp("/", skillText(language, skillTextHelpFilter)),
 	)
+	keys.MultiSelect.SetFilter = key.NewBinding(
+		key.WithKeys("enter", "esc"),
+		key.WithHelp("enter/esc", skillText(language, skillTextHelpApplyFilter)),
+		key.WithDisabled(),
+	)
+	keys.MultiSelect.ClearFilter = key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", skillText(language, skillTextHelpClearFilter)),
+		key.WithDisabled(),
+	)
 	keys.MultiSelect.SelectAll = key.NewBinding(
 		key.WithKeys("a"),
 		key.WithHelp("a", skillText(language, skillTextHelpAll)),
@@ -129,8 +139,8 @@ func newOrcaDubSkillTheme() huh.Theme {
 		styles.Focused.SelectSelector = styles.Focused.SelectSelector.Foreground(cyan).SetString("❯ ")
 		styles.Focused.Option = styles.Focused.Option.Foreground(normal)
 		styles.Focused.MultiSelectSelector = styles.Focused.MultiSelectSelector.Foreground(cyan).SetString("❯ ")
-		styles.Focused.SelectedPrefix = styles.Focused.SelectedPrefix.Foreground(green).SetString("◉ ")
-		styles.Focused.UnselectedPrefix = styles.Focused.UnselectedPrefix.Foreground(muted).SetString("○ ")
+		styles.Focused.SelectedPrefix = styles.Focused.SelectedPrefix.Foreground(green).SetString("[✓] ")
+		styles.Focused.UnselectedPrefix = styles.Focused.UnselectedPrefix.Foreground(muted).SetString("[ ] ")
 		styles.Focused.SelectedOption = styles.Focused.SelectedOption.Foreground(green)
 		styles.Focused.UnselectedOption = styles.Focused.UnselectedOption.Foreground(normal)
 		styles.Focused.ErrorIndicator = styles.Focused.ErrorIndicator.Foreground(red)
@@ -296,11 +306,16 @@ func (field *clearableSkillMultiSelect) KeyBinds() []key.Binding {
 	all.SetEnabled(true)
 	none := field.keyMap.MultiSelect.SelectNone
 	none.SetEnabled(true)
+	filter := field.keyMap.MultiSelect.Filter
+	if field.filterText != "" {
+		filter = field.keyMap.MultiSelect.ClearFilter
+		filter.SetEnabled(true)
+	}
 	return []key.Binding{
 		field.keyMap.MultiSelect.Toggle,
 		field.keyMap.MultiSelect.Up,
 		field.keyMap.MultiSelect.Down,
-		field.keyMap.MultiSelect.Filter,
+		filter,
 		all,
 		none,
 		field.keyMap.MultiSelect.Submit,
