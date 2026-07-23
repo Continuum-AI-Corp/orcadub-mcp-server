@@ -356,7 +356,7 @@ func resolveNonInteractiveSkillSelection(
 	if err != nil {
 		return skillPromptResult{}, 1, err
 	}
-	selected := detectSkillPlatforms(projectDir)
+	selected := detectSkillPlatforms(projectDir, "", nil)
 	if len(selected) == 0 {
 		selected = allSkillPlatformIDs()
 	}
@@ -383,7 +383,7 @@ func resolveInteractiveSkillSelection(
 		return skillPromptResult{}, 1, fmt.Errorf("resolve current directory: %w", err)
 	}
 
-	detected := detectSkillPlatforms(detectionDir)
+	detected := detectSkillPlatforms(detectionDir, "", nil)
 	colorEnabled := skillCLIColorEnabled(skillCLILookupEnv)
 	renderSkillBanner(os.Stdout, colorEnabled)
 	result, err := skillCLIPromptRunner().Run(&skillPromptRequest{

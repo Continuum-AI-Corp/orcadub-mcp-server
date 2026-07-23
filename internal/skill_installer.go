@@ -41,11 +41,13 @@ const (
 )
 
 type skillPlatform struct {
-	ID             string
-	Name           string
-	ProjectRoot    string
-	GlobalRoot     string
-	DetectionPaths []string
+	ID                   string
+	Name                 string
+	ProjectRoot          string
+	GlobalRoot           string
+	DetectionPaths       []string
+	GlobalDetectionPaths []string
+	Executables          []string
 }
 
 type skillInstallTarget struct {
@@ -77,14 +79,23 @@ type skillInstaller struct {
 // without a special global root uses the same relative root under the user's
 // home directory.
 var skillPlatforms = []skillPlatform{
-	{ID: "claude", Name: "Claude Code", ProjectRoot: ".claude", GlobalRoot: ".claude"},
+	{
+		ID:                   "claude",
+		Name:                 "Claude Code",
+		ProjectRoot:          ".claude",
+		GlobalRoot:           ".claude",
+		GlobalDetectionPaths: []string{".claude"},
+		Executables:          []string{"claude"},
+	},
 	{ID: "cursor", Name: "Cursor", ProjectRoot: ".cursor", GlobalRoot: ".cursor"},
 	{
-		ID:             "codex",
-		Name:           "Codex",
-		ProjectRoot:    ".agents",
-		GlobalRoot:     ".agents",
-		DetectionPaths: []string{".codex"},
+		ID:                   "codex",
+		Name:                 "Codex",
+		ProjectRoot:          ".agents",
+		GlobalRoot:           ".agents",
+		DetectionPaths:       []string{".codex"},
+		GlobalDetectionPaths: []string{".codex"},
+		Executables:          []string{"codex"},
 	},
 	{
 		ID:          "opencode",
@@ -158,17 +169,40 @@ func findSkillPlatform(id string) (skillPlatform, bool) {
 	return skillPlatform{}, false
 }
 
-func detectSkillPlatforms(projectDir string) []string {
+func detectSkillPlatforms(
+	projectDir string,
+	homeDir string,
+	lookPath func(string) (string, error),
+) []string {
 	detected := make([]string, 0)
+platformLoop:
 	for _, platform := range skillPlatforms {
-		paths := platform.DetectionPaths
-		if len(paths) == 0 {
-			paths = []string{platform.ProjectRoot}
+		projectPaths := platform.DetectionPaths
+		if len(projectPaths) == 0 {
+			projectPaths = []string{platform.ProjectRoot}
 		}
-		for _, marker := range paths {
-			if _, err := os.Stat(filepath.Join(projectDir, filepath.FromSlash(marker))); err == nil {
-				detected = append(detected, platform.ID)
-				break
+		if projectDir != "" {
+			for _, marker := range projectPaths {
+				if _, err := os.Stat(filepath.Join(projectDir, filepath.FromSlash(marker))); err == nil {
+					detected = append(detected, platform.ID)
+					continue platformLoop
+				}
+			}
+		}
+		if homeDir != "" {
+			for _, marker := range platform.GlobalDetectionPaths {
+				if _, err := os.Stat(filepath.Join(homeDir, filepath.FromSlash(marker))); err == nil {
+					detected = append(detected, platform.ID)
+					continue platformLoop
+				}
+			}
+		}
+		if lookPath != nil {
+			for _, executable := range platform.Executables {
+				if _, err := lookPath(executable); err == nil {
+					detected = append(detected, platform.ID)
+					continue platformLoop
+				}
 			}
 		}
 	}
