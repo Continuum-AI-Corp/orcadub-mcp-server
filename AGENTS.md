@@ -19,7 +19,7 @@ is synced here manually. Keep the two in behavioural lockstep.
 
 ```
 cmd/                   # entrypoint; serverVersion stamped via goreleaser ldflags
-internal/              # HTTP client, Skill installer, MCP tool layer, vendored wire types, tests
+internal/              # HTTP client, Skill installer/TUI/i18n, MCP tool layer, vendored wire types, tests
 npm/                   # npx launcher: postinstall downloads the platform binary
 .goreleaser.yaml       # 6-platform release (bare binaries + tar.gz/zip + ghcr.io docker images)
 Dockerfile             # standalone build; Dockerfile.goreleaser is used at release time
@@ -64,6 +64,12 @@ server.json            # MCP Registry manifest
    OpenAI-style `{"error":{"message":...}}` (gateway routing errors) and the
    OrcaRouter task envelope `{"code":..,"message":..,"data":..}` (dub task
    errors). See `apiError`.
+9. **Skill installer machine output stays presentation-free.** Interactive
+   fields are implemented by the Huh adapter in `internal/skill_prompt_huh.go`;
+   installer-owned Simplified Chinese and English text lives in
+   `internal/skill_i18n.go`. `skill install --json`, `--yes`, and fully
+   explicit installs must not emit the banner, ANSI escapes, prompts, or
+   localized status values into JSON.
 
 ## Development
 
@@ -82,6 +88,9 @@ Individual targets: `make fmt` (goimports+gofmt), `make lint`
   (goimports + gofmt + golangci-lint --fix + re-stage, installed via
   `make setup`) and CI (gofmt check + golangci-lint — the authoritative
   gate). Never commit unformatted Go code.
+- When changing the guided Skill installer, test both TTY and non-TTY paths.
+  Keep arrow-key scope selection, the filterable checkbox catalog, detected
+  defaults, and the `Space`, `/`, `a`, `n`, and `Enter` bindings intact.
 - Manual smoke test of the stdio surface:
 
   ```bash
