@@ -6,12 +6,14 @@ import (
 )
 
 const (
-	skillBannerWord      = "ORCADUB"
-	skillBannerHeight    = 15
-	skillBannerWordWidth = 34
-	skillBannerBlue      = "\x1b[94m"
-	skillBannerCyan      = "\x1b[96m"
-	skillBannerReset     = "\x1b[0m"
+	skillBannerWord       = "ORCADUB"
+	skillBannerHeight     = 8
+	skillBannerWordWidth  = 68
+	skillBannerGlyphScale = 2
+	skillBannerLetterGap  = 2
+	skillBannerBlue       = "\x1b[94m"
+	skillBannerCyan       = "\x1b[96m"
+	skillBannerReset      = "\x1b[0m"
 )
 
 var skillBannerWordmarkGlyphs = map[rune][7]string{
@@ -24,7 +26,7 @@ var skillBannerWordmarkGlyphs = map[rune][7]string{
 	'B': {"███ ", "█  █", "█  █", "███ ", "█  █", "█  █", "███ "},
 }
 
-var skillBannerWordmarkRowRepeats = [7]int{2, 2, 2, 3, 2, 2, 2}
+var skillBannerWordmarkRowRepeats = [7]int{1, 1, 1, 2, 1, 1, 1}
 
 func skillBannerWordmarkRows(color bool) []string {
 	rows := make([]string, 0, skillBannerHeight)
@@ -32,9 +34,11 @@ func skillBannerWordmarkRows(color bool) []string {
 		var builder strings.Builder
 		for index, letter := range skillBannerWord {
 			if index > 0 {
-				builder.WriteByte(' ')
+				builder.WriteString(strings.Repeat(" ", skillBannerLetterGap))
 			}
-			builder.WriteString(skillBannerWordmarkGlyphs[letter][glyphRow])
+			for _, cell := range skillBannerWordmarkGlyphs[letter][glyphRow] {
+				builder.WriteString(strings.Repeat(string(cell), skillBannerGlyphScale))
+			}
 		}
 		plain := builder.String()
 		for range repeats {

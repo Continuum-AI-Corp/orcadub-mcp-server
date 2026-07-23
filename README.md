@@ -50,7 +50,7 @@ to run the upload → create → poll → download workflow. Install it interact
 npx -y @orcadub/cli skill install
 ```
 
-The guided installer opens with a compact 15-row `ORCADUB` wordmark, then lets you:
+The guided installer opens with a balanced 8-row `ORCADUB` wordmark, then lets you:
 
 - Choose `简体中文` or `English`; the system locale selects the initial default.
 - Choose Project or Global installation with the arrow keys.
