@@ -92,15 +92,16 @@ Individual targets: `make fmt` (goimports+gofmt), `make lint`
 
 ## Release process
 
-1. Bump `version` in `server.json` if publishing to the MCP Registry.
+1. Keep `version` in `server.json` aligned with the release being prepared.
 2. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 3. GitHub Actions: goreleaser builds linux/darwin/windows × amd64/arm64
    (bare binaries feed the npm launcher; tar.gz/zip for humans), attests
    the artifacts (GitHub Artifact Attestations / SLSA provenance), then
    the `npm-publish` job stamps the tag version into `npm/package.json`
-   and publishes when the `NPM_TOKEN` secret is set. Workflow actions are
-   pinned to commit SHAs — when bumping one, update both the SHA and its
-   tag comment.
+   and publishes when the `NPM_TOKEN` secret is set. The registry job stamps
+   the same tag version into `server.json` before publishing. Workflow actions
+   are pinned to commit SHAs — when bumping one, update both the SHA and its tag
+   comment.
 4. `npm/package.json` stays at `0.0.0` in git — the workflow stamps it.
    `install.js` treats `0.0.0` as "dev install, skip download".
 5. The repo must be public for external users: the npm postinstall downloads

@@ -9,8 +9,9 @@ name: release
 # verify any downloaded file with:
 #   gh attestation verify <file> -R Continuum-AI-Corp/orcadub-mcp-server
 #
-# npm publish runs afterwards when the NPM_TOKEN secret is configured;
-# it stamps the tag version into npm/package.json before publishing.
+# npm publish runs afterwards when the NPM_TOKEN secret is configured.
+# Both npm/package.json and the MCP Registry manifest are stamped from the tag
+# before publishing so every release channel advertises the same version.
 #
 # All actions are pinned to commit SHAs (comment = the tag the SHA was
 # resolved from) so a moved tag cannot inject code into this pipeline.
@@ -100,5 +101,7 @@ jobs:
             | tar -xz mcp-publisher
       - name: login (GitHub Actions OIDC)
         run: ./mcp-publisher login github-oidc
+      - name: stamp version from tag
+        run: bash scripts/stamp-mcp-version.sh "$GITHUB_REF_NAME"
       - name: publish to MCP Registry
         run: ./mcp-publisher publish
