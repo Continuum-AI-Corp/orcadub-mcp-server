@@ -45,7 +45,7 @@ type skillPlatform struct {
 	Name                 string
 	ProjectRoot          string
 	GlobalRoot           string
-	DetectionPaths       []string
+	DetectionPaths       []string // nil uses ProjectRoot; empty disables project detection.
 	GlobalDetectionPaths []string
 	Executables          []string
 }
@@ -136,16 +136,18 @@ var skillPlatforms = []skillPlatform{
 	{ID: "pi", Name: "Pi", ProjectRoot: ".pi", GlobalRoot: ".pi/agent"},
 	{ID: "qoder", Name: "Qoder", ProjectRoot: ".qoder", GlobalRoot: ".qoder"},
 	{
-		ID:          "antigravity",
-		Name:        "Antigravity",
-		ProjectRoot: ".agents",
-		GlobalRoot:  ".gemini/antigravity",
+		ID:             "antigravity",
+		Name:           "Antigravity",
+		ProjectRoot:    ".agents",
+		GlobalRoot:     ".gemini/antigravity",
+		DetectionPaths: []string{},
 	},
 	{
-		ID:          "antigravity2",
-		Name:        "Antigravity 2.0",
-		ProjectRoot: ".agents",
-		GlobalRoot:  ".gemini/config",
+		ID:             "antigravity2",
+		Name:           "Antigravity 2.0",
+		ProjectRoot:    ".agents",
+		GlobalRoot:     ".gemini/config",
+		DetectionPaths: []string{},
 	},
 	{ID: "bob", Name: "Bob Shell", ProjectRoot: ".bob", GlobalRoot: ".bob"},
 	{ID: "forgecode", Name: "ForgeCode", ProjectRoot: ".forge", GlobalRoot: ".forge"},
@@ -178,7 +180,7 @@ func detectSkillPlatforms(
 platformLoop:
 	for _, platform := range skillPlatforms {
 		projectPaths := platform.DetectionPaths
-		if len(projectPaths) == 0 {
+		if projectPaths == nil {
 			projectPaths = []string{platform.ProjectRoot}
 		}
 		if projectDir != "" {

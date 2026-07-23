@@ -14,6 +14,7 @@
 - Claude Code detection signals are `.claude` and `claude`.
 - Codex detection signals are `.codex` and `codex`.
 - Never use `.agents` as a Codex detection marker.
+- Never use the shared `.agents` root to infer either Antigravity platform.
 - Detection failures are non-fatal and detected IDs retain catalog order.
 - Repository code, tests, documentation, and commits remain in English.
 
@@ -81,6 +82,22 @@ func TestDetectSkillPlatformsIgnoresSharedAgentsDirectory(t *testing.T) {
 	}
 }
 
+func TestDetectSkillPlatformsIgnoresSharedProjectAgentsDirectory(t *testing.T) {
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := detectSkillPlatforms(projectDir, t.TempDir(), func(string) (string, error) {
+		return "", exec.ErrNotFound
+	})
+	for _, id := range got {
+		if id == "codex" || id == "antigravity" || id == "antigravity2" {
+			t.Fatalf("shared project .agents directory falsely detected %q", id)
+		}
+	}
+}
+
 func TestDetectSkillPlatformsDeduplicatesSignals(t *testing.T) {
 	projectDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(projectDir, ".codex"), 0o755); err != nil {
@@ -126,7 +143,7 @@ type skillPlatform struct {
 	Name                 string
 	ProjectRoot          string
 	GlobalRoot           string
-	DetectionPaths       []string
+	DetectionPaths       []string // nil uses ProjectRoot; empty disables project detection.
 	GlobalDetectionPaths []string
 	Executables          []string
 }
@@ -152,6 +169,20 @@ Configure only the confirmed signals:
 	GlobalDetectionPaths: []string{".codex"},
 	Executables:          []string{"codex"},
 },
+{
+	ID:             "antigravity",
+	Name:           "Antigravity",
+	ProjectRoot:    ".agents",
+	GlobalRoot:     ".gemini/antigravity",
+	DetectionPaths: []string{},
+},
+{
+	ID:             "antigravity2",
+	Name:           "Antigravity 2.0",
+	ProjectRoot:    ".agents",
+	GlobalRoot:     ".gemini/config",
+	DetectionPaths: []string{},
+},
 ```
 
 Replace the detector with:
@@ -166,7 +197,7 @@ func detectSkillPlatforms(
 platformLoop:
 	for _, platform := range skillPlatforms {
 		projectPaths := platform.DetectionPaths
-		if len(projectPaths) == 0 {
+		if projectPaths == nil {
 			projectPaths = []string{platform.ProjectRoot}
 		}
 		if projectDir != "" {

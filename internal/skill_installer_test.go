@@ -193,6 +193,24 @@ func TestDetectSkillPlatformsIgnoresSharedAgentsDirectory(t *testing.T) {
 	}
 }
 
+func TestDetectSkillPlatformsIgnoresSharedProjectAgentsDirectory(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := detectSkillPlatforms(projectDir, t.TempDir(), func(string) (string, error) {
+		return "", exec.ErrNotFound
+	})
+	for _, id := range got {
+		if id == "codex" || id == "antigravity" || id == "antigravity2" {
+			t.Fatalf("shared project .agents directory falsely detected %q", id)
+		}
+	}
+}
+
 func TestDetectSkillPlatformsDeduplicatesSignals(t *testing.T) {
 	t.Parallel()
 

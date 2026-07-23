@@ -38,8 +38,10 @@ Codex installs Skills under `.agents`, but `.agents` is a shared destination
 also used by other platforms. Therefore `.agents` must not be treated as a
 Codex detection marker.
 
-Only explicit global detection paths are checked. This prevents a generic or
-shared Skill directory from selecting unrelated platforms.
+Only explicit global detection paths are checked. A platform may also
+explicitly disable the project-root fallback when its project root is shared.
+This prevents a generic or shared Skill directory from selecting unrelated
+platforms.
 
 ## Design
 
@@ -48,8 +50,9 @@ Extend `skillPlatform` with explicit detection metadata:
 - `GlobalDetectionPaths []string`
 - `Executables []string`
 
-Keep `DetectionPaths` as the project marker override. When it is empty, the
-project root remains the project marker, preserving current behavior.
+Keep `DetectionPaths` as the project marker override. A nil value uses the
+project root, preserving current behavior, while an explicit empty slice
+disables project detection for shared roots such as Antigravity's `.agents`.
 
 Change the detector to accept project directory, home directory, and a
 `LookPath` dependency. For each platform, it checks project markers, then
@@ -78,7 +81,8 @@ Regression tests will prove:
   project has no markers.
 - Claude Code and Codex are detected from `PATH` when neither project nor home
   markers exist.
-- A shared `.agents` directory alone does not detect Codex or Antigravity.
+- A shared project or home `.agents` directory alone does not detect Codex,
+  Antigravity, or Antigravity 2.0.
 - Multiple signals for one platform do not create duplicates.
 - Existing project-marker detection still works.
 - The interactive prompt request preselects Claude Code and Codex using the
