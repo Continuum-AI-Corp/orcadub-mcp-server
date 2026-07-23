@@ -23,7 +23,8 @@ For this fix:
 
 - Claude Code uses `.claude` and the `claude` executable.
 - Codex uses `.codex` and the `codex` executable.
-- Existing project-marker behavior remains unchanged for every platform.
+- Existing project-marker behavior remains unchanged for platforms with
+  dedicated roots; shared `.agents` roots are not detection markers.
 - Detection remains best effort. Failure to resolve the home directory or
   search `PATH` must not prevent installation.
 
