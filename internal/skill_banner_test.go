@@ -36,11 +36,13 @@ func TestSkillBannerWordmarkRows(t *testing.T) {
 				)
 			}
 		}
-		for glyphIndex := range []rune("ORCADUB") {
-			start := glyphIndex * 5
+		glyphWidth := 4 * skillBannerGlyphScale
+		glyphStride := glyphWidth + skillBannerLetterGap
+		for glyphIndex := range []rune(skillBannerWord) {
+			start := glyphIndex * glyphStride
 			hasInk := false
 			for _, row := range visibleRows {
-				for _, cell := range row[start : start+4] {
+				for _, cell := range row[start : start+glyphWidth] {
 					hasInk = hasInk || cell != ' '
 				}
 			}
