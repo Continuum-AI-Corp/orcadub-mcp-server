@@ -406,7 +406,7 @@ env GOROOT=/Users/a0000/.gvm/gos/go1.25.0 \
   GOTOOLCHAIN=auto \
   go build ./...
 node --check npm/install.js
-node --check npm/bin/orcadub.js
+node --check npm/bin/run.js
 git diff --check
 ```
 
