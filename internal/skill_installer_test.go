@@ -165,7 +165,7 @@ func TestDetectSkillPlatformsUsesExecutables(t *testing.T) {
 	installed := map[string]bool{"claude": true, "codex": true}
 	got := detectSkillPlatforms(t.TempDir(), t.TempDir(), func(name string) (string, error) {
 		if installed[name] {
-			return filepath.Join("/bin", name), nil
+			return name, nil
 		}
 		return "", exec.ErrNotFound
 	})

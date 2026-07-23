@@ -163,9 +163,10 @@ var skillPlatforms = []skillPlatform{
 }
 
 func findSkillPlatform(id string) (skillPlatform, bool) {
-	for _, platform := range skillPlatforms {
+	for index := range skillPlatforms {
+		platform := &skillPlatforms[index]
 		if platform.ID == id {
-			return platform, true
+			return *platform, true
 		}
 	}
 	return skillPlatform{}, false
@@ -178,7 +179,8 @@ func detectSkillPlatforms(
 ) []string {
 	detected := make([]string, 0)
 platformLoop:
-	for _, platform := range skillPlatforms {
+	for index := range skillPlatforms {
+		platform := &skillPlatforms[index]
 		projectPaths := platform.DetectionPaths
 		if projectPaths == nil {
 			projectPaths = []string{platform.ProjectRoot}

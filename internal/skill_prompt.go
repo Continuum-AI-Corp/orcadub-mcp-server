@@ -97,7 +97,8 @@ func orderedSkillPromptPlatforms(detected []string) []skillPromptPlatform {
 		seen[id] = true
 		order = append(order, id)
 	}
-	for _, platform := range skillPlatforms {
+	for index := range skillPlatforms {
+		platform := &skillPlatforms[index]
 		if detectedSet[platform.ID] {
 			appendUnique(platform.ID)
 		}
@@ -105,8 +106,8 @@ func orderedSkillPromptPlatforms(detected []string) []skillPromptPlatform {
 	for _, id := range popularSkillPlatformIDs {
 		appendUnique(id)
 	}
-	for _, platform := range skillPlatforms {
-		appendUnique(platform.ID)
+	for index := range skillPlatforms {
+		appendUnique(skillPlatforms[index].ID)
 	}
 
 	options := make([]skillPromptPlatform, 0, len(order))

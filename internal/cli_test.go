@@ -416,7 +416,7 @@ func TestRunCLISkillInstallTUIDetectsInstalledCLIs(t *testing.T) {
 	t.Cleanup(func() { skillCLILookPath = oldLookPath })
 	skillCLILookPath = func(name string) (string, error) {
 		if name == "claude" || name == "codex" {
-			return filepath.Join("/bin", name), nil
+			return name, nil
 		}
 		return "", exec.ErrNotFound
 	}

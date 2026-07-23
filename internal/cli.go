@@ -512,8 +512,8 @@ func parseSkillCLIOptions(args []string) (skillCLIOptions, error) {
 
 func allSkillPlatformIDs() []string {
 	all := make([]string, 0, len(skillPlatforms))
-	for _, platform := range skillPlatforms {
-		all = append(all, platform.ID)
+	for index := range skillPlatforms {
+		all = append(all, skillPlatforms[index].ID)
 	}
 	return all
 }
