@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 )
 
@@ -48,6 +49,105 @@ func TestSkillPromptRejectsEmptyPlatforms(t *testing.T) {
 	err := validatePromptPlatforms(skillLanguageEN, nil)
 	if err == nil || err.Error() != "Select at least one platform" {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestClearableSkillMultiSelectClearsWithN(t *testing.T) {
+	t.Parallel()
+
+	selected := []string{"codex"}
+	multiSelect := huh.NewMultiSelect[string]().
+		Options(
+			huh.NewOption("Claude Code", "claude"),
+			huh.NewOption("Codex", "codex").Selected(true),
+		).
+		Value(&selected)
+	field := &clearableSkillMultiSelect{Field: multiSelect}
+	field.WithKeyMap(newSkillPromptKeyMap(skillLanguageEN))
+	field.Focus()
+
+	_, _ = field.Update(skillPromptKeyPress("n"))
+	if len(selected) != 0 {
+		t.Fatalf("selected = %v, want empty", selected)
+	}
+}
+
+func TestClearableSkillMultiSelectLeavesNToFilter(t *testing.T) {
+	t.Parallel()
+
+	selected := []string{"codex"}
+	multiSelect := huh.NewMultiSelect[string]().
+		Options(
+			huh.NewOption("Claude Code", "claude"),
+			huh.NewOption("Codex", "codex").Selected(true),
+		).
+		Value(&selected).
+		Filterable(true)
+	field := &clearableSkillMultiSelect{Field: multiSelect}
+	field.WithKeyMap(newSkillPromptKeyMap(skillLanguageEN))
+	field.Focus()
+
+	_, _ = field.Update(skillPromptKeyPress("/"))
+	_, _ = field.Update(tea.KeyPressMsg(tea.Key{Text: "n", Code: 'n'}))
+	if !slices.Equal(selected, []string{"codex"}) {
+		t.Fatalf("selected = %v, want filter typing to preserve selection", selected)
+	}
+}
+
+func TestClearableSkillMultiSelectAppliesAllKeysBeyondActiveFilter(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		key      string
+		initial  []string
+		expected []string
+	}{
+		{
+			name:     "select all",
+			key:      "a",
+			initial:  []string{"codex"},
+			expected: []string{"claude", "codex"},
+		},
+		{
+			name:     "clear all",
+			key:      "n",
+			initial:  []string{"codex"},
+			expected: []string{},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			selected := append([]string(nil), test.initial...)
+			multiSelect := huh.NewMultiSelect[string]().
+				Options(
+					huh.NewOption("Claude Code", "claude"),
+					huh.NewOption("Codex", "codex"),
+				).
+				Value(&selected).
+				Filterable(true)
+			field := &clearableSkillMultiSelect{Field: multiSelect}
+			field.WithKeyMap(newSkillPromptKeyMap(skillLanguageEN))
+			field.Focus()
+
+			for _, keyMsg := range []tea.KeyPressMsg{
+				skillPromptKeyPress("/"),
+				skillPromptKeyPress("c"),
+				skillPromptKeyPress("l"),
+				skillPromptKeyPress("a"),
+				tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}),
+			} {
+				_, _ = field.Update(keyMsg)
+			}
+			_, _ = field.Update(skillPromptKeyPress(test.key))
+
+			if !slices.Equal(selected, test.expected) {
+				t.Fatalf("selected = %v, want %v", selected, test.expected)
+			}
+			if field.filterText != "cla" {
+				t.Fatalf("filter text = %q, want preserved filter", field.filterText)
+			}
+		})
 	}
 }
 

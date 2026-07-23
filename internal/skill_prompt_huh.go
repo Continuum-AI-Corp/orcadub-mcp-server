@@ -2,14 +2,20 @@ package dub
 
 import (
 	"fmt"
-	"strings"
 
 	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 )
 
 type huhSkillPromptRunner struct{}
+
+type clearableSkillMultiSelect struct {
+	huh.Field
+	filtering  bool
+	filterText string
+}
 
 var runSkillHuhForm = func(form *huh.Form) error {
 	return form.Run()
@@ -93,9 +99,11 @@ func validatePromptPlatforms(language skillLanguage, platformIDs []string) error
 func newOrcaDubSkillTheme() huh.Theme {
 	return huh.ThemeFunc(func(isDark bool) *huh.Styles {
 		styles := huh.ThemeBase(isDark)
+		lightDark := lipgloss.LightDark(isDark)
 		blue := lipgloss.Color("#007BFF")
 		cyan := lipgloss.Color("#53C7FF")
-		muted := lipgloss.Color("#7A869A")
+		normal := lightDark(lipgloss.Color("#E7F4FF"), lipgloss.Color("#18324A"))
+		muted := lightDark(lipgloss.Color("#7A869A"), lipgloss.Color("#617187"))
 		green := lipgloss.Color("#23C483")
 		red := lipgloss.Color("#FF5D73")
 
@@ -104,12 +112,12 @@ func newOrcaDubSkillTheme() huh.Theme {
 		styles.Focused.Title = styles.Focused.Title.Foreground(cyan).Bold(true)
 		styles.Focused.Description = styles.Focused.Description.Foreground(muted)
 		styles.Focused.SelectSelector = styles.Focused.SelectSelector.Foreground(cyan).SetString("❯ ")
-		styles.Focused.Option = styles.Focused.Option.Foreground(lipgloss.Color("#E7F4FF"))
+		styles.Focused.Option = styles.Focused.Option.Foreground(normal)
 		styles.Focused.MultiSelectSelector = styles.Focused.MultiSelectSelector.Foreground(cyan).SetString("❯ ")
 		styles.Focused.SelectedPrefix = styles.Focused.SelectedPrefix.Foreground(green).SetString("◉ ")
 		styles.Focused.UnselectedPrefix = styles.Focused.UnselectedPrefix.Foreground(muted).SetString("○ ")
 		styles.Focused.SelectedOption = styles.Focused.SelectedOption.Foreground(green)
-		styles.Focused.UnselectedOption = styles.Focused.UnselectedOption.Foreground(lipgloss.Color("#E7F4FF"))
+		styles.Focused.UnselectedOption = styles.Focused.UnselectedOption.Foreground(normal)
 		styles.Focused.ErrorIndicator = styles.Focused.ErrorIndicator.Foreground(red)
 		styles.Focused.ErrorMessage = styles.Focused.ErrorMessage.Foreground(red)
 
@@ -167,7 +175,7 @@ func (huhSkillPromptRunner) Run(request skillPromptRequest) (skillPromptResult, 
 	if request.AskPlatforms {
 		options, defaults := buildHuhSkillPlatformOptions(result.Language, request.PlatformOptions)
 		result.PlatformIDs = defaults
-		field := huh.NewMultiSelect[string]().
+		multiSelect := huh.NewMultiSelect[string]().
 			Title(skillText(result.Language, skillTextPlatformTitle)).
 			Description(skillText(result.Language, skillTextPlatformDescription)).
 			Options(options...).
@@ -177,6 +185,7 @@ func (huhSkillPromptRunner) Run(request skillPromptRequest) (skillPromptResult, 
 			Validate(func(ids []string) error {
 				return validatePromptPlatforms(result.Language, ids)
 			})
+		field := &clearableSkillMultiSelect{Field: multiSelect}
 		if err := runSkillPromptForm(field, request, result.Language); err != nil {
 			return skillPromptResult{}, err
 		}
@@ -208,16 +217,95 @@ func runSkillPromptForm(
 	return runSkillHuhForm(form)
 }
 
-func normalizePromptPlatformIDs(ids []string) []string {
-	normalized := make([]string, 0, len(ids))
-	seen := make(map[string]bool, len(ids))
-	for _, id := range ids {
-		id = strings.TrimSpace(id)
-		if id == "" || seen[id] {
-			continue
-		}
-		seen[id] = true
-		normalized = append(normalized, id)
+func (field *clearableSkillMultiSelect) Update(msg tea.Msg) (huh.Model, tea.Cmd) {
+	keyMsg, isKey := msg.(tea.KeyPressMsg)
+	if !isKey {
+		return field.updateEmbedded(msg)
 	}
-	return normalized
+
+	keyName := keyMsg.Keystroke()
+	if field.filtering {
+		model, cmd := field.updateFilterText(msg)
+		switch keyName {
+		case "enter", "esc":
+			field.filtering = false
+		case "backspace":
+			runes := []rune(field.filterText)
+			if len(runes) > 0 {
+				field.filterText = string(runes[:len(runes)-1])
+			}
+		default:
+			if keyMsg.Text != "" {
+				field.filterText += keyMsg.Text
+			}
+		}
+		return model, cmd
+	}
+	if keyName == "/" {
+		model, cmd := field.updateEmbedded(msg)
+		field.filtering = true
+		return model, cmd
+	}
+	if keyName == "esc" {
+		field.filterText = ""
+		return field.updateEmbedded(msg)
+	}
+	switch keyName {
+	case "a":
+		return field.applySelectionToAll(false)
+	case "n":
+		return field.applySelectionToAll(true)
+	default:
+		return field.updateEmbedded(msg)
+	}
+}
+
+func (field *clearableSkillMultiSelect) updateEmbedded(msg tea.Msg) (huh.Model, tea.Cmd) {
+	model, cmd := field.Field.Update(msg)
+	if updated, ok := model.(huh.Field); ok {
+		field.Field = updated
+	}
+	return field, cmd
+}
+
+func (field *clearableSkillMultiSelect) updateFilterText(msg tea.Msg) (huh.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok &&
+		(keyMsg.Keystroke() == "a" || keyMsg.Keystroke() == "n") {
+		msg = tea.PasteMsg{Content: keyMsg.Text}
+	}
+	return field.updateEmbedded(msg)
+}
+
+func skillPromptKeyPress(key string) tea.KeyPressMsg {
+	r := []rune(key)[0]
+	return tea.KeyPressMsg(tea.Key{Text: key, Code: r})
+}
+
+func (field *clearableSkillMultiSelect) applySelectionToAll(clear bool) (huh.Model, tea.Cmd) {
+	var commands []tea.Cmd
+	update := func(msg tea.Msg) {
+		_, cmd := field.updateEmbedded(msg)
+		commands = append(commands, cmd)
+	}
+
+	activeFilter := field.filterText
+	if activeFilter != "" {
+		update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
+	}
+
+	field.Field.KeyBinds()
+	update(skillPromptKeyPress("a"))
+	if clear {
+		update(skillPromptKeyPress("n"))
+	}
+
+	if activeFilter != "" {
+		update(skillPromptKeyPress("/"))
+		for _, r := range activeFilter {
+			_, cmd := field.updateFilterText(tea.KeyPressMsg(tea.Key{Text: string(r), Code: r}))
+			commands = append(commands, cmd)
+		}
+		update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	}
+	return field, tea.Batch(commands...)
 }
