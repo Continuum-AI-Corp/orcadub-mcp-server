@@ -26,6 +26,11 @@ func skillBannerLogoRows(color bool) []string {
 	}
 	rows := strings.Split(strings.TrimSuffix(value, "\n"), "\n")
 	if len(rows) == skillBannerHeight {
+		if !color {
+			for index := range rows {
+				rows[index] = strings.ReplaceAll(rows[index], ".", " ")
+			}
+		}
 		return rows
 	}
 	blank := strings.Repeat(" ", skillBannerLogoWidth)

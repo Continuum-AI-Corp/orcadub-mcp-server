@@ -30,7 +30,8 @@ def plain_payload(color_payload: bytes) -> bytes:
     rows = []
     for line in color_payload.rstrip(b"\n").splitlines():
         visible = ANSI.sub(b"", line).decode("utf-8")
-        rows.append(visible.translate(str.maketrans({"▀": "█", "▄": "█"})))
+        silhouette = visible.translate(str.maketrans({"▀": "█", "▄": "█"}))
+        rows.append(silhouette.replace(" ", "."))
     return ("\n".join(rows) + "\n").encode("utf-8")
 
 

@@ -36,6 +36,17 @@ func TestSkillBannerLogoRows(t *testing.T) {
 	}
 }
 
+func TestSkillBannerPlainAssetHasNoTrailingWhitespace(t *testing.T) {
+	t.Parallel()
+
+	rows := strings.Split(strings.TrimSuffix(skillBannerLogoPlain, "\n"), "\n")
+	for index, row := range rows {
+		if strings.HasSuffix(row, " ") || strings.HasSuffix(row, "\t") {
+			t.Fatalf("plain asset row %d has trailing whitespace", index)
+		}
+	}
+}
+
 func TestSkillBannerWordmarkRows(t *testing.T) {
 	t.Parallel()
 
