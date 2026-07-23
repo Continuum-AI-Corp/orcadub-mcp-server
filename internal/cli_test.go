@@ -1,7 +1,6 @@
 package dub
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -10,10 +9,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"charm.land/huh/v2"
 )
 
 func TestApplyCreateOpts(t *testing.T) {
@@ -272,13 +274,490 @@ func setSkillCLIRuntimeForTest(
 	oldInstaller := skillCLIInstaller
 	oldWorkingDir := skillCLIWorkingDir
 	oldHomeDir := skillCLIHomeDir
+	oldLookPath := skillCLILookPath
 	skillCLIInstaller = func() skillInstaller { return installer }
 	skillCLIWorkingDir = func() (string, error) { return projectDir, nil }
 	skillCLIHomeDir = func() (string, error) { return homeDir, nil }
+	skillCLILookPath = func(string) (string, error) { return "", exec.ErrNotFound }
 	return func() {
 		skillCLIInstaller = oldInstaller
 		skillCLIWorkingDir = oldWorkingDir
 		skillCLIHomeDir = oldHomeDir
+		skillCLILookPath = oldLookPath
+	}
+}
+
+type fakeSkillPromptRunner struct {
+	request skillPromptRequest
+	result  skillPromptResult
+	err     error
+	calls   int
+}
+
+func (f *fakeSkillPromptRunner) Run(request *skillPromptRequest) (skillPromptResult, error) {
+	f.calls++
+	f.request = *request
+	return f.result, f.err
+}
+
+func setSkillPromptRuntimeForTest(
+	runner skillPromptRunner,
+	isTerminal bool,
+	locale string,
+) func() {
+	oldPromptRunner := skillCLIPromptRunner
+	oldIsTerminal := skillCLIIsTerminal
+	oldGetenv := skillCLIGetenv
+	oldLookupEnv := skillCLILookupEnv
+	skillCLIPromptRunner = func() skillPromptRunner { return runner }
+	skillCLIIsTerminal = func() bool { return isTerminal }
+	skillCLIGetenv = func(key string) string {
+		switch key {
+		case "LC_ALL", "LC_MESSAGES", "LANG":
+			return locale
+		default:
+			return ""
+		}
+	}
+	skillCLILookupEnv = func(string) (string, bool) { return "", false }
+	return func() {
+		skillCLIPromptRunner = oldPromptRunner
+		skillCLIIsTerminal = oldIsTerminal
+		skillCLIGetenv = oldGetenv
+		skillCLILookupEnv = oldLookupEnv
+	}
+}
+
+func TestSkillCLIColorEnabled(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		env  map[string]string
+		want bool
+	}{
+		{name: "supported terminal", env: map[string]string{"TERM": "xterm-256color"}, want: true},
+		{name: "NO_COLOR", env: map[string]string{"NO_COLOR": "", "TERM": "xterm-256color"}, want: false},
+		{name: "dumb terminal", env: map[string]string{"TERM": "dumb"}, want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			lookupEnv := func(key string) (string, bool) {
+				value, ok := test.env[key]
+				return value, ok
+			}
+			if got := skillCLIColorEnabled(lookupEnv); got != test.want {
+				t.Fatalf("enabled = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestRunCLISkillInstallTUI(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".codex"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		projectDir,
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	prompt := &fakeSkillPromptRunner{result: skillPromptResult{
+		Language:    skillLanguageZH,
+		Scope:       skillInstallProject,
+		PlatformIDs: []string{"codex"},
+	}}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, true, "zh_CN.UTF-8")
+	t.Cleanup(restorePrompt)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install"})
+	})
+	if out.code != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if prompt.calls != 1 {
+		t.Fatalf("prompt calls = %d", prompt.calls)
+	}
+	if !prompt.request.AskLanguage || !prompt.request.AskScope || !prompt.request.AskPlatforms {
+		t.Fatalf("prompt request = %+v", prompt.request)
+	}
+	if !prompt.request.ColorEnabled {
+		t.Fatal("prompt color is disabled for a supported terminal")
+	}
+	if !strings.Contains(out.out, skillBannerBlue) ||
+		!strings.Contains(out.out, skillBannerCyan) {
+		t.Fatalf("stdout lacks Orca banner colors:\n%s", out.out)
+	}
+	if _, err := os.Stat(filepath.Join(projectDir, ".agents", "skills", "orcadub", "SKILL.md")); err != nil {
+		t.Fatalf("Codex Skill was not installed: %v", err)
+	}
+}
+
+func TestRunCLISkillInstallTUIDetectsInstalledCLIs(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	oldLookPath := skillCLILookPath
+	t.Cleanup(func() { skillCLILookPath = oldLookPath })
+	skillCLILookPath = func(name string) (string, error) {
+		if name == "claude" || name == "codex" {
+			return name, nil
+		}
+		return "", exec.ErrNotFound
+	}
+
+	prompt := &fakeSkillPromptRunner{result: skillPromptResult{
+		Language:    skillLanguageEN,
+		Scope:       skillInstallProject,
+		PlatformIDs: []string{"claude", "codex"},
+	}}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, true, "en_US.UTF-8")
+	t.Cleanup(restorePrompt)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install"})
+	})
+	if out.code != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+
+	detected := map[string]bool{}
+	for _, option := range prompt.request.PlatformOptions {
+		if option.Detected && option.Selected {
+			detected[option.ID] = true
+		}
+	}
+	if !detected["claude"] || !detected["codex"] {
+		t.Fatalf("detected options = %v, want claude and codex", detected)
+	}
+}
+
+func TestRunCLISkillInstallTUIHonorsNoColor(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	prompt := &fakeSkillPromptRunner{result: skillPromptResult{
+		Language:    skillLanguageEN,
+		Scope:       skillInstallProject,
+		PlatformIDs: []string{"codex"},
+	}}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, true, "en_US.UTF-8")
+	t.Cleanup(restorePrompt)
+	skillCLILookupEnv = func(key string) (string, bool) {
+		if key == "NO_COLOR" {
+			return "", true
+		}
+		return "", false
+	}
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install"})
+	})
+	if out.code != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if !strings.Contains(out.out, "████") || strings.Contains(out.out, "\x1b[") {
+		t.Fatalf("NO_COLOR banner output = %q", out.out)
+	}
+	if prompt.request.ColorEnabled {
+		t.Fatal("NO_COLOR prompt request still enables colors")
+	}
+}
+
+func TestRunCLISkillInstallTUIExplicitScopeSkipsScopePrompt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	homeDir := t.TempDir()
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		homeDir,
+	)
+	t.Cleanup(restoreCLI)
+	prompt := &fakeSkillPromptRunner{result: skillPromptResult{
+		Language:    skillLanguageEN,
+		Scope:       skillInstallGlobal,
+		PlatformIDs: []string{"codex"},
+	}}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, true, "en_US.UTF-8")
+	t.Cleanup(restorePrompt)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install", "--scope", "global"})
+	})
+	if out.code != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if prompt.calls != 1 || !prompt.request.AskLanguage ||
+		prompt.request.AskScope || !prompt.request.AskPlatforms {
+		t.Fatalf("prompt request = %+v, calls=%d", prompt.request, prompt.calls)
+	}
+	if _, err := os.Stat(filepath.Join(homeDir, ".agents", "skills", "orcadub", "SKILL.md")); err != nil {
+		t.Fatalf("global Codex Skill was not installed: %v", err)
+	}
+}
+
+func TestRunCLISkillInstallExplicitPlatformSkipsPrompt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	projectDir := t.TempDir()
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		projectDir,
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	prompt := &fakeSkillPromptRunner{}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, false, "en_US.UTF-8")
+	t.Cleanup(restorePrompt)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install", "--platform", "codex"})
+	})
+	if out.code != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if prompt.calls != 0 {
+		t.Fatalf("prompt calls = %d", prompt.calls)
+	}
+	if strings.Contains(out.out, "ORCA//DUB") {
+		t.Fatalf("non-interactive stdout contains banner:\n%s", out.out)
+	}
+}
+
+func TestRunCLISkillInstallYesSkipsPromptAndBanner(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	prompt := &fakeSkillPromptRunner{}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, true, "en_US.UTF-8")
+	t.Cleanup(restorePrompt)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install", "--platform", "codex", "--yes"})
+	})
+	if out.code != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if prompt.calls != 0 || strings.Contains(out.out, "ORCA//DUB") || strings.Contains(out.out, "\x1b[") {
+		t.Fatalf("prompt calls=%d stdout=%q", prompt.calls, out.out)
+	}
+}
+
+func TestRunCLISkillInstallCancellation(t *testing.T) {
+	contacted := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		contacted = true
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	prompt := &fakeSkillPromptRunner{err: huh.ErrUserAborted}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, true, "en_US.UTF-8")
+	t.Cleanup(restorePrompt)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install"})
+	})
+	if out.code != 130 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if contacted {
+		t.Fatal("installer source was contacted after cancellation")
+	}
+}
+
+func TestRunCLISkillInstallLocalizesConfirmedFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "source unavailable", http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	prompt := &fakeSkillPromptRunner{result: skillPromptResult{
+		Language:    skillLanguageZH,
+		Scope:       skillInstallProject,
+		PlatformIDs: []string{"codex"},
+	}}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, true, "zh_CN.UTF-8")
+	t.Cleanup(restorePrompt)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install"})
+	})
+	if out.code != 1 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if !strings.Contains(out.err, "OrcaDub Skill 安装失败") ||
+		!strings.Contains(out.err, "HTTP 502") {
+		t.Fatalf("stderr lacks localized context and source detail: %q", out.err)
+	}
+}
+
+func TestRunCLISkillInstallJSONFailureStaysUnadorned(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "source unavailable", http.StatusBadGateway)
+	}))
+	t.Cleanup(srv.Close)
+
+	restore := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restore)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{
+			"skill", "install",
+			"--platform", "codex",
+			"--scope", "project",
+			"--lang", "zh",
+			"--json",
+		})
+	})
+	if out.code != 1 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if strings.Contains(out.err, "OrcaDub Skill 安装失败") ||
+		strings.Contains(out.err, "ORCA//DUB") ||
+		strings.Contains(out.err, "\x1b[") {
+		t.Fatalf("JSON-mode stderr contains presentation: %q", out.err)
+	}
+	if !strings.Contains(out.err, "HTTP 502") {
+		t.Fatalf("stderr lacks source detail: %q", out.err)
+	}
+}
+
+func TestRunCLISkillInstallNonTTY(t *testing.T) {
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: http.DefaultClient, sourceURL: "http://unused.invalid"},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	prompt := &fakeSkillPromptRunner{}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, false, "zh_CN.UTF-8")
+	t.Cleanup(restorePrompt)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install"})
+	})
+	if out.code != 2 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if !strings.Contains(out.err, "--lang") || !strings.Contains(out.err, "--scope") ||
+		!strings.Contains(out.err, "--platform") || !strings.Contains(out.err, "--yes") {
+		t.Fatalf("stderr lacks flag guidance: %q", out.err)
+	}
+	if prompt.calls != 0 {
+		t.Fatalf("prompt calls = %d", prompt.calls)
+	}
+}
+
+func TestRenderSkillInstallReportLocalized(t *testing.T) {
+	report := skillInstallReport{
+		Source: "https://example.test/SKILL.md",
+		Scope:  skillInstallProject,
+		Results: []skillInstallResult{
+			{
+				Platforms:     []string{"codex"},
+				PlatformNames: []string{"Codex"},
+				Path:          "/tmp/.agents/skills/orcadub/SKILL.md",
+				Status:        skillInstallStatusConflict,
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		language skillLanguage
+		title    string
+		scope    string
+	}{
+		{
+			name:     "English",
+			language: skillLanguageEN,
+			title:    "OrcaDub Skill installation",
+			scope:    "Project — current directory",
+		},
+		{
+			name:     "Simplified Chinese",
+			language: skillLanguageZH,
+			title:    "OrcaDub Skill 安装结果",
+			scope:    "当前项目",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			out := captureStdout(t, func() int {
+				renderSkillInstallReport(report, test.language)
+				return 0
+			})
+			for _, want := range []string{
+				test.title,
+				test.scope,
+				"--force",
+				"Codex",
+				"/tmp/.agents/skills/orcadub/SKILL.md",
+			} {
+				if !strings.Contains(out.out, want) {
+					t.Fatalf("stdout lacks %q:\n%s", want, out.out)
+				}
+			}
+		})
+	}
+	if report.Results[0].Status != skillInstallStatusConflict {
+		t.Fatalf("machine status changed to %q", report.Results[0].Status)
 	}
 }
 
@@ -321,6 +800,47 @@ func TestRunCLISkillInstallExplicitPlatformJSON(t *testing.T) {
 	}
 	if got, err := os.ReadFile(destination); err != nil || string(got) != validDubVideoSkill {
 		t.Fatalf("installed Skill = %q, err=%v", got, err)
+	}
+}
+
+func TestParseSkillCLIOptionsLanguage(t *testing.T) {
+	t.Parallel()
+
+	options, err := parseSkillCLIOptions([]string{"--lang", "zh"})
+	if err != nil || options.languageValue != "zh" {
+		t.Fatalf("options=%#v err=%v", options, err)
+	}
+	if _, err := parseSkillCLIOptions([]string{"--lang", "fr"}); err == nil {
+		t.Fatal("expected invalid language error")
+	}
+}
+
+func TestRunCLISkillInstallJSONHasNoPresentation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	restore := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restore)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{
+			"skill", "install",
+			"--platform", "codex",
+			"--scope", "project",
+			"--json",
+		})
+	})
+	if out.code != 0 || !json.Valid([]byte(out.out)) {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+	if strings.Contains(out.out, "ORCA//DUB") || strings.Contains(out.out, "\x1b[") {
+		t.Fatalf("JSON contains presentation output: %q", out.out)
 	}
 }
 
@@ -399,57 +919,68 @@ func TestRunCLISkillInstallYesUsesDetectedPlatforms(t *testing.T) {
 	}
 }
 
-func TestSelectSkillInstallPlatformsNonInteractiveDefaultsToAll(t *testing.T) {
-	t.Parallel()
-
-	got, err := selectSkillInstallPlatforms(nil, nil, true, bufio.NewReader(strings.NewReader("")))
-	if err != nil {
-		t.Fatal(err)
+func TestResolveNonInteractiveSkillSelectionUsesGlobalDetection(t *testing.T) {
+	projectDir := t.TempDir()
+	homeDir := t.TempDir()
+	for _, marker := range []string{".claude", ".codex"} {
+		if err := os.MkdirAll(filepath.Join(homeDir, marker), 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
-	want := allSkillPlatformIDs()
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("selected platforms = %v, want all %v", got, want)
+
+	oldWorkingDir := skillCLIWorkingDir
+	oldHomeDir := skillCLIHomeDir
+	oldLookPath := skillCLILookPath
+	t.Cleanup(func() {
+		skillCLIWorkingDir = oldWorkingDir
+		skillCLIHomeDir = oldHomeDir
+		skillCLILookPath = oldLookPath
+	})
+	skillCLIWorkingDir = func() (string, error) { return projectDir, nil }
+	skillCLIHomeDir = func() (string, error) { return homeDir, nil }
+	skillCLILookPath = func(string) (string, error) { return "", exec.ErrNotFound }
+
+	result, exitCode, err := resolveNonInteractiveSkillSelection(
+		skillLanguageEN,
+		skillInstallProject,
+	)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("exit=%d err=%v", exitCode, err)
+	}
+	if want := []string{"claude", "codex"}; !reflect.DeepEqual(result.PlatformIDs, want) {
+		t.Fatalf("selected platforms = %v, want %v", result.PlatformIDs, want)
 	}
 }
 
-func TestRunCLISkillInstallGuidesInteractiveSelection(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(validDubVideoSkill))
-	}))
-	t.Cleanup(srv.Close)
-
-	projectDir := t.TempDir()
-	homeDir := t.TempDir()
-	restore := setSkillCLIRuntimeForTest(
-		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
-		projectDir,
-		homeDir,
-	)
-	t.Cleanup(restore)
-	oldInput := skillCLIInput
-	skillCLIInput = func() io.Reader { return strings.NewReader("2\n1,3\n") }
-	t.Cleanup(func() { skillCLIInput = oldInput })
-
-	out := captureStdout(t, func() int {
-		return RunCLI([]string{"skill", "install"})
+func TestSkillCLIDetectionIgnoresHomeLookupFailure(t *testing.T) {
+	oldWorkingDir := skillCLIWorkingDir
+	oldHomeDir := skillCLIHomeDir
+	oldLookPath := skillCLILookPath
+	t.Cleanup(func() {
+		skillCLIWorkingDir = oldWorkingDir
+		skillCLIHomeDir = oldHomeDir
+		skillCLILookPath = oldLookPath
 	})
-	if out.code != 0 {
-		t.Fatalf("skill install exit = %d, stderr=%s", out.code, out.err)
+	skillCLIWorkingDir = func() (string, error) { return t.TempDir(), nil }
+	skillCLIHomeDir = func() (string, error) {
+		return "", errors.New("injected home lookup failure")
 	}
-	if !strings.Contains(out.out, "Install scope:") ||
-		!strings.Contains(out.out, "Platforms:") ||
-		!strings.Contains(out.out, "Claude Code") ||
-		!strings.Contains(out.out, "Codex") {
-		t.Fatalf("interactive output lacks guidance:\n%s", out.out)
-	}
-	for _, root := range []string{".claude", ".agents"} {
-		destination := filepath.Join(homeDir, root, "skills", "orcadub", "SKILL.md")
-		if _, err := os.Stat(destination); err != nil {
-			t.Fatalf("selected global target %s: %v", destination, err)
+	skillCLILookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return "/bin/codex", nil
 		}
+		return "", exec.ErrNotFound
 	}
-	if _, err := os.Stat(filepath.Join(projectDir, ".claude")); !os.IsNotExist(err) {
-		t.Fatalf("interactive global install wrote into project; stat err = %v", err)
+
+	result, exitCode, err := resolveNonInteractiveSkillSelection(
+		skillLanguageEN,
+		skillInstallProject,
+	)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("exit=%d err=%v", exitCode, err)
+	}
+	if want := []string{"codex"}; !reflect.DeepEqual(result.PlatformIDs, want) {
+		t.Fatalf("selected platforms = %v, want %v", result.PlatformIDs, want)
 	}
 }
 

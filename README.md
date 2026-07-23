@@ -50,25 +50,36 @@ to run the upload → create → poll → download workflow. Install it interact
 npx -y @orcadub/cli skill install
 ```
 
-The installer detects existing AI coding platforms and can install the Skill
-for any of the 33 platforms in its Comet-compatible platform catalog. For
-unattended or agent-driven setup, select targets explicitly:
+The guided installer opens with a compact 15-row `ORCADUB` wordmark, then lets you:
+
+- Choose `简体中文` or `English`; the system locale selects the initial default.
+- Choose Project or Global installation with the arrow keys.
+- Select one or more platforms from a checkbox list. Detected platforms appear
+  first and are already checked.
+- Press `Space` to toggle, `/` to filter, `a` to select all, `n` to clear all,
+  and `Enter` to confirm.
+
+It supports all 33 platforms in its Comet-compatible catalog. Use
+`--lang zh` or `--lang en` to skip the language screen. For unattended or
+agent-driven setup, select targets explicitly:
 
 ```bash
 # Current project
 npx -y @orcadub/cli skill install \
-  --platform claude --platform codex --scope project --yes
+  --platform claude --platform codex --scope project --lang en --yes
 
 # User-wide Codex installation
 npx -y @orcadub/cli skill install \
-  --platform codex --scope global --yes
+  --platform codex --scope global --lang zh --yes
 ```
 
-Use `--json` for structured output. Existing identical content is left
-unchanged; an existing different Skill is preserved unless `--force` is
-provided. Skill installation needs network access to the canonical
-`orcadub-plugin` repository, but it does not require `ORCADUB_API_KEY` and
-does not contact OrcaRouter.
+Use `--yes` to accept detected platforms (or all platforms when none are
+detected) without opening the installer. Use `--json` for decoration-free
+structured output. Set `NO_COLOR` (or use `TERM=dumb`) for a color-free
+installer. Existing identical content is left unchanged; an existing different
+Skill is preserved unless `--force` is provided. Skill installation needs
+network access to the canonical `orcadub-plugin` repository, but it does not
+require `ORCADUB_API_KEY` and does not contact OrcaRouter.
 
 ## Quick start
 
