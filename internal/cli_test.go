@@ -290,9 +290,9 @@ type fakeSkillPromptRunner struct {
 	calls   int
 }
 
-func (f *fakeSkillPromptRunner) Run(request skillPromptRequest) (skillPromptResult, error) {
+func (f *fakeSkillPromptRunner) Run(request *skillPromptRequest) (skillPromptResult, error) {
 	f.calls++
-	f.request = request
+	f.request = *request
 	return f.result, f.err
 }
 

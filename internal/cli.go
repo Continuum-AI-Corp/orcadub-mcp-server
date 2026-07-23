@@ -271,85 +271,27 @@ func runSkillCLI(args []string) int {
 		return 2
 	}
 
-	language := defaultSkillLanguage(skillCLIGetenv)
-	if options.languageValue != "" {
-		language, err = parseSkillLanguage(options.languageValue)
+	selection, selectionCode, err := resolveSkillCLISelection(options)
+	if selectionCode != 0 {
 		if err != nil {
-			_, _ = fmt.Fprintln(os.Stderr, err.Error())
-			return 2
-		}
-	}
-
-	scope, err := parseSkillInstallScope(options.scopeValue)
-	if err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err.Error())
-		return 2
-	}
-	nonInteractive := options.yes || options.jsonOutput || len(options.platformIDs) > 0
-	var selected []string
-
-	if len(options.platformIDs) > 0 {
-		selected, err = validateSkillPlatformIDs(options.platformIDs)
-		if err != nil {
-			_, _ = fmt.Fprintln(os.Stderr, err.Error())
-			return 2
-		}
-	} else if nonInteractive {
-		projectDir, _, resolveErr := resolveSkillCLIBaseDirs(scope, true)
-		if resolveErr != nil {
-			return fail(resolveErr)
-		}
-		detected := detectSkillPlatforms(projectDir)
-		if len(detected) > 0 {
-			selected = detected
-		} else {
-			selected = allSkillPlatformIDs()
-		}
-	} else {
-		if !skillCLIIsTerminal() {
-			_, _ = fmt.Fprintln(os.Stderr, skillText(language, skillTextNonTTYGuidance))
-			return 2
-		}
-		detectionDir, detectErr := skillCLIWorkingDir()
-		if detectErr != nil {
-			return fail(fmt.Errorf("resolve current directory: %w", detectErr))
-		}
-		detected := detectSkillPlatforms(detectionDir)
-		renderSkillBanner(os.Stdout, true)
-		promptResult, promptErr := skillCLIPromptRunner().Run(skillPromptRequest{
-			Language:        language,
-			AskLanguage:     options.languageValue == "",
-			Scope:           scope,
-			AskScope:        options.scopeValue == "",
-			PlatformOptions: orderedSkillPromptPlatforms(detected),
-			AskPlatforms:    true,
-			Input:           os.Stdin,
-			Output:          os.Stdout,
-		})
-		if promptErr != nil {
-			if errors.Is(promptErr, huh.ErrUserAborted) {
-				return 130
+			if selectionCode == 2 {
+				_, _ = fmt.Fprintln(os.Stderr, err.Error())
+			} else {
+				return fail(err)
 			}
-			return fail(promptErr)
 		}
-		language = promptResult.Language
-		scope = promptResult.Scope
-		selected, err = validateSkillPlatformIDs(promptResult.PlatformIDs)
-		if err != nil {
-			_, _ = fmt.Fprintln(os.Stderr, err.Error())
-			return 2
-		}
+		return selectionCode
 	}
 
-	projectDir, homeDir, err := resolveSkillCLIBaseDirs(scope, false)
+	projectDir, homeDir, err := resolveSkillCLIBaseDirs(selection.Scope, false)
 	if err != nil {
 		return fail(err)
 	}
 
 	report, err := skillCLIInstaller().install(
 		context.Background(),
-		selected,
-		scope,
+		selection.PlatformIDs,
+		selection.Scope,
 		projectDir,
 		homeDir,
 		options.force,
@@ -364,10 +306,105 @@ func runSkillCLI(args []string) int {
 		}
 		_, _ = fmt.Fprintln(os.Stdout, string(data))
 	} else {
-		renderSkillInstallReport(report, language)
+		renderSkillInstallReport(report, selection.Language)
 	}
 	if skillInstallReportFailed(report) {
 		return 1
+	}
+	return 0
+}
+
+func resolveSkillCLISelection(options skillCLIOptions) (skillPromptResult, int, error) {
+	language := defaultSkillLanguage(skillCLIGetenv)
+	var err error
+	if options.languageValue != "" {
+		language, err = parseSkillLanguage(options.languageValue)
+		if err != nil {
+			return skillPromptResult{}, 2, err
+		}
+	}
+
+	scope, err := parseSkillInstallScope(options.scopeValue)
+	if err != nil {
+		return skillPromptResult{}, 2, err
+	}
+
+	switch {
+	case len(options.platformIDs) > 0:
+		selected, validationErr := validateSkillPlatformIDs(options.platformIDs)
+		return skillPromptResult{
+			Language:    language,
+			Scope:       scope,
+			PlatformIDs: selected,
+		}, errorExitCode(validationErr, 2), validationErr
+	case options.yes || options.jsonOutput:
+		return resolveNonInteractiveSkillSelection(language, scope)
+	default:
+		return resolveInteractiveSkillSelection(options, language, scope)
+	}
+}
+
+func resolveNonInteractiveSkillSelection(
+	language skillLanguage,
+	scope skillInstallScope,
+) (skillPromptResult, int, error) {
+	projectDir, _, err := resolveSkillCLIBaseDirs(scope, true)
+	if err != nil {
+		return skillPromptResult{}, 1, err
+	}
+	selected := detectSkillPlatforms(projectDir)
+	if len(selected) == 0 {
+		selected = allSkillPlatformIDs()
+	}
+	return skillPromptResult{
+		Language:    language,
+		Scope:       scope,
+		PlatformIDs: selected,
+	}, 0, nil
+}
+
+func resolveInteractiveSkillSelection(
+	options skillCLIOptions,
+	language skillLanguage,
+	scope skillInstallScope,
+) (skillPromptResult, int, error) {
+	if !skillCLIIsTerminal() {
+		return skillPromptResult{}, 2, fmt.Errorf(
+			"%s",
+			skillText(language, skillTextNonTTYGuidance),
+		)
+	}
+	detectionDir, err := skillCLIWorkingDir()
+	if err != nil {
+		return skillPromptResult{}, 1, fmt.Errorf("resolve current directory: %w", err)
+	}
+
+	detected := detectSkillPlatforms(detectionDir)
+	renderSkillBanner(os.Stdout, true)
+	result, err := skillCLIPromptRunner().Run(&skillPromptRequest{
+		Language:        language,
+		AskLanguage:     options.languageValue == "",
+		Scope:           scope,
+		AskScope:        options.scopeValue == "",
+		PlatformOptions: orderedSkillPromptPlatforms(detected),
+		AskPlatforms:    true,
+		Input:           os.Stdin,
+		Output:          os.Stdout,
+	})
+	if errors.Is(err, huh.ErrUserAborted) {
+		return skillPromptResult{}, 130, nil
+	}
+	if err != nil {
+		return skillPromptResult{}, 1, err
+	}
+
+	result.PlatformIDs, err = validateSkillPlatformIDs(result.PlatformIDs)
+	return result, errorExitCode(err, 2), err
+}
+
+func errorExitCode(err error, code int) int {
+	if err != nil {
+		return code
 	}
 	return 0
 }

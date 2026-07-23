@@ -38,7 +38,7 @@ type skillPromptResult struct {
 }
 
 type skillPromptRunner interface {
-	Run(skillPromptRequest) (skillPromptResult, error)
+	Run(*skillPromptRequest) (skillPromptResult, error)
 }
 
 var popularSkillPlatformIDs = []string{

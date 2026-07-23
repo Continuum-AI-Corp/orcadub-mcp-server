@@ -2,6 +2,7 @@ package dub
 
 import (
 	"fmt"
+	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -11,10 +12,13 @@ import (
 
 type huhSkillPromptRunner struct{}
 
+const skillPlatformPromptHeight = 10 // Eight options plus title and description.
+
 type clearableSkillMultiSelect struct {
 	huh.Field
 	filtering  bool
 	filterText string
+	keyMap     *huh.KeyMap
 }
 
 var runSkillHuhForm = func(form *huh.Form) error {
@@ -73,9 +77,9 @@ func newSkillPromptKeyMap(language skillLanguage) *huh.KeyMap {
 func buildHuhSkillPlatformOptions(
 	language skillLanguage,
 	platforms []skillPromptPlatform,
-) ([]huh.Option[string], []string) {
-	options := make([]huh.Option[string], 0, len(platforms))
-	defaults := make([]string, 0, len(platforms))
+) (options []huh.Option[string], defaults []string) {
+	options = make([]huh.Option[string], 0, len(platforms))
+	defaults = make([]string, 0, len(platforms))
 	for _, platform := range platforms {
 		label := fmt.Sprintf("%s  (%s)", platform.Name, platform.ID)
 		if platform.Detected {
@@ -94,6 +98,17 @@ func validatePromptPlatforms(language skillLanguage, platformIDs []string) error
 		return fmt.Errorf("%s", skillText(language, skillTextSelectOnePlatform))
 	}
 	return nil
+}
+
+func newSkillPlatformValidator(language skillLanguage) func([]string) error {
+	initial := true
+	return func(platformIDs []string) error {
+		if initial {
+			initial = false
+			return nil
+		}
+		return validatePromptPlatforms(language, platformIDs)
+	}
 }
 
 func newOrcaDubSkillTheme() huh.Theme {
@@ -133,7 +148,8 @@ func newOrcaDubSkillTheme() huh.Theme {
 	})
 }
 
-func (huhSkillPromptRunner) Run(request skillPromptRequest) (skillPromptResult, error) {
+// Run presents the requested interactive Skill installer fields.
+func (huhSkillPromptRunner) Run(request *skillPromptRequest) (skillPromptResult, error) {
 	result := skillPromptResult{
 		Language: request.Language,
 		Scope:    request.Scope,
@@ -180,11 +196,9 @@ func (huhSkillPromptRunner) Run(request skillPromptRequest) (skillPromptResult, 
 			Description(skillText(result.Language, skillTextPlatformDescription)).
 			Options(options...).
 			Value(&result.PlatformIDs).
-			Height(8).
+			Height(skillPlatformPromptHeight).
 			Filterable(true).
-			Validate(func(ids []string) error {
-				return validatePromptPlatforms(result.Language, ids)
-			})
+			Validate(newSkillPlatformValidator(result.Language))
 		field := &clearableSkillMultiSelect{Field: multiSelect}
 		if err := runSkillPromptForm(field, request, result.Language); err != nil {
 			return skillPromptResult{}, err
@@ -200,11 +214,7 @@ func (huhSkillPromptRunner) Run(request skillPromptRequest) (skillPromptResult, 
 	return result, nil
 }
 
-func runSkillPromptForm(
-	field huh.Field,
-	request skillPromptRequest,
-	language skillLanguage,
-) error {
+func runSkillPromptForm(field huh.Field, request *skillPromptRequest, language skillLanguage) error {
 	form := huh.NewForm(huh.NewGroup(field)).
 		WithTheme(newOrcaDubSkillTheme()).
 		WithKeyMap(newSkillPromptKeyMap(language))
@@ -217,6 +227,7 @@ func runSkillPromptForm(
 	return runSkillHuhForm(form)
 }
 
+// Update preserves deterministic all/none shortcuts around Huh's filter state.
 func (field *clearableSkillMultiSelect) Update(msg tea.Msg) (huh.Model, tea.Cmd) {
 	keyMsg, isKey := msg.(tea.KeyPressMsg)
 	if !isKey {
@@ -268,6 +279,34 @@ func (field *clearableSkillMultiSelect) updateEmbedded(msg tea.Msg) (huh.Model, 
 	return field, cmd
 }
 
+// WithKeyMap retains the localized bindings used by the compact help row.
+func (field *clearableSkillMultiSelect) WithKeyMap(keyMap *huh.KeyMap) huh.Field {
+	field.keyMap = keyMap
+	field.Field.WithKeyMap(keyMap)
+	return field
+}
+
+// KeyBinds keeps the explicit all and none actions visible in every selection state.
+func (field *clearableSkillMultiSelect) KeyBinds() []key.Binding {
+	base := field.Field.KeyBinds()
+	if field.filtering || field.keyMap == nil {
+		return base
+	}
+	all := field.keyMap.MultiSelect.SelectAll
+	all.SetEnabled(true)
+	none := field.keyMap.MultiSelect.SelectNone
+	none.SetEnabled(true)
+	return []key.Binding{
+		field.keyMap.MultiSelect.Toggle,
+		field.keyMap.MultiSelect.Up,
+		field.keyMap.MultiSelect.Down,
+		field.keyMap.MultiSelect.Filter,
+		all,
+		none,
+		field.keyMap.MultiSelect.Submit,
+	}
+}
+
 func (field *clearableSkillMultiSelect) updateFilterText(msg tea.Msg) (huh.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok &&
 		(keyMsg.Keystroke() == "a" || keyMsg.Keystroke() == "n") {
@@ -276,12 +315,12 @@ func (field *clearableSkillMultiSelect) updateFilterText(msg tea.Msg) (huh.Model
 	return field.updateEmbedded(msg)
 }
 
-func skillPromptKeyPress(key string) tea.KeyPressMsg {
-	r := []rune(key)[0]
-	return tea.KeyPressMsg(tea.Key{Text: key, Code: r})
+func skillPromptKeyPress(keyName string) tea.KeyPressMsg {
+	r, _ := utf8.DecodeRuneInString(keyName)
+	return tea.KeyPressMsg(tea.Key{Text: keyName, Code: r})
 }
 
-func (field *clearableSkillMultiSelect) applySelectionToAll(clear bool) (huh.Model, tea.Cmd) {
+func (field *clearableSkillMultiSelect) applySelectionToAll(clearAll bool) (huh.Model, tea.Cmd) {
 	var commands []tea.Cmd
 	update := func(msg tea.Msg) {
 		_, cmd := field.updateEmbedded(msg)
@@ -293,9 +332,9 @@ func (field *clearableSkillMultiSelect) applySelectionToAll(clear bool) (huh.Mod
 		update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc}))
 	}
 
-	field.Field.KeyBinds()
+	field.KeyBinds()
 	update(skillPromptKeyPress("a"))
-	if clear {
+	if clearAll {
 		update(skillPromptKeyPress("n"))
 	}
 

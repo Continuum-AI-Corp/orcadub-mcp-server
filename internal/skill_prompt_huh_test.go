@@ -94,6 +94,42 @@ func TestClearableSkillMultiSelectLeavesNToFilter(t *testing.T) {
 	}
 }
 
+func TestClearableSkillMultiSelectAlwaysShowsAllAndNoneHelp(t *testing.T) {
+	t.Parallel()
+
+	selected := []string{"codex"}
+	multiSelect := huh.NewMultiSelect[string]().
+		Options(
+			huh.NewOption("Claude Code", "claude"),
+			huh.NewOption("Codex", "codex"),
+		).
+		Value(&selected)
+	field := &clearableSkillMultiSelect{Field: multiSelect}
+	field.WithKeyMap(newSkillPromptKeyMap(skillLanguageEN))
+	field.Focus()
+
+	var hasAll, hasNone bool
+	for _, binding := range field.KeyBinds() {
+		hasAll = hasAll || (binding.Enabled() && slices.Contains(binding.Keys(), "a"))
+		hasNone = hasNone || (binding.Enabled() && slices.Contains(binding.Keys(), "n"))
+	}
+	if !hasAll || !hasNone {
+		t.Fatalf("help has all=%v none=%v", hasAll, hasNone)
+	}
+}
+
+func TestSkillPlatformValidatorWaitsUntilSubmission(t *testing.T) {
+	t.Parallel()
+
+	validate := newSkillPlatformValidator(skillLanguageEN)
+	if err := validate(nil); err != nil {
+		t.Fatalf("initial validation = %v, want nil", err)
+	}
+	if err := validate(nil); err == nil || err.Error() != "Select at least one platform" {
+		t.Fatalf("submit validation = %v", err)
+	}
+}
+
 func TestClearableSkillMultiSelectAppliesAllKeysBeyondActiveFilter(t *testing.T) {
 	t.Parallel()
 
@@ -163,7 +199,7 @@ func TestHuhSkillPromptRunnerSequencesRequestedFields(t *testing.T) {
 		return nil
 	}
 
-	result, err := (huhSkillPromptRunner{}).Run(skillPromptRequest{
+	result, err := (huhSkillPromptRunner{}).Run(&skillPromptRequest{
 		Language:        skillLanguageZH,
 		AskLanguage:     true,
 		Scope:           skillInstallProject,
@@ -195,7 +231,7 @@ func TestHuhSkillPromptRunnerReturnsCancellation(t *testing.T) {
 		return huh.ErrUserAborted
 	}
 
-	result, err := (huhSkillPromptRunner{}).Run(skillPromptRequest{
+	result, err := (huhSkillPromptRunner{}).Run(&skillPromptRequest{
 		Language:    skillLanguageEN,
 		AskLanguage: true,
 	})
