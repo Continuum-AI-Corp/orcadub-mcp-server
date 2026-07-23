@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"sync/atomic"
@@ -130,9 +131,101 @@ func TestDetectSkillPlatformsUsesPlatformMarkers(t *testing.T) {
 		}
 	}
 
-	got := detectSkillPlatforms(projectDir)
+	got := detectSkillPlatforms(projectDir, t.TempDir(), func(string) (string, error) {
+		return "", exec.ErrNotFound
+	})
 	want := []string{"claude", "codex", "github-copilot"}
 	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("detected platforms = %v, want %v", got, want)
+	}
+}
+
+func TestDetectSkillPlatformsUsesGlobalMarkers(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	homeDir := t.TempDir()
+	for _, marker := range []string{".claude", ".codex"} {
+		if err := os.MkdirAll(filepath.Join(homeDir, marker), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got := detectSkillPlatforms(projectDir, homeDir, func(string) (string, error) {
+		return "", exec.ErrNotFound
+	})
+	if want := []string{"claude", "codex"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("detected platforms = %v, want %v", got, want)
+	}
+}
+
+func TestDetectSkillPlatformsUsesExecutables(t *testing.T) {
+	t.Parallel()
+
+	installed := map[string]bool{"claude": true, "codex": true}
+	got := detectSkillPlatforms(t.TempDir(), t.TempDir(), func(name string) (string, error) {
+		if installed[name] {
+			return name, nil
+		}
+		return "", exec.ErrNotFound
+	})
+	if want := []string{"claude", "codex"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("detected platforms = %v, want %v", got, want)
+	}
+}
+
+func TestDetectSkillPlatformsIgnoresSharedAgentsDirectory(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	homeDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(homeDir, ".agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := detectSkillPlatforms(projectDir, homeDir, func(string) (string, error) {
+		return "", exec.ErrNotFound
+	})
+	for _, id := range got {
+		if id == "codex" || id == "antigravity" {
+			t.Fatalf("shared .agents directory falsely detected %q", id)
+		}
+	}
+}
+
+func TestDetectSkillPlatformsIgnoresSharedProjectAgentsDirectory(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".agents"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := detectSkillPlatforms(projectDir, t.TempDir(), func(string) (string, error) {
+		return "", exec.ErrNotFound
+	})
+	for _, id := range got {
+		if id == "codex" || id == "antigravity" || id == "antigravity2" {
+			t.Fatalf("shared project .agents directory falsely detected %q", id)
+		}
+	}
+}
+
+func TestDetectSkillPlatformsDeduplicatesSignals(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".codex"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := detectSkillPlatforms(projectDir, t.TempDir(), func(name string) (string, error) {
+		if name == "codex" {
+			return "/bin/codex", nil
+		}
+		return "", exec.ErrNotFound
+	})
+	if want := []string{"codex"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("detected platforms = %v, want %v", got, want)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -273,13 +274,16 @@ func setSkillCLIRuntimeForTest(
 	oldInstaller := skillCLIInstaller
 	oldWorkingDir := skillCLIWorkingDir
 	oldHomeDir := skillCLIHomeDir
+	oldLookPath := skillCLILookPath
 	skillCLIInstaller = func() skillInstaller { return installer }
 	skillCLIWorkingDir = func() (string, error) { return projectDir, nil }
 	skillCLIHomeDir = func() (string, error) { return homeDir, nil }
+	skillCLILookPath = func(string) (string, error) { return "", exec.ErrNotFound }
 	return func() {
 		skillCLIInstaller = oldInstaller
 		skillCLIWorkingDir = oldWorkingDir
 		skillCLIHomeDir = oldHomeDir
+		skillCLILookPath = oldLookPath
 	}
 }
 
@@ -393,6 +397,53 @@ func TestRunCLISkillInstallTUI(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(projectDir, ".agents", "skills", "orcadub", "SKILL.md")); err != nil {
 		t.Fatalf("Codex Skill was not installed: %v", err)
+	}
+}
+
+func TestRunCLISkillInstallTUIDetectsInstalledCLIs(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(validDubVideoSkill))
+	}))
+	t.Cleanup(srv.Close)
+
+	restoreCLI := setSkillCLIRuntimeForTest(
+		skillInstaller{client: srv.Client(), sourceURL: srv.URL},
+		t.TempDir(),
+		t.TempDir(),
+	)
+	t.Cleanup(restoreCLI)
+	oldLookPath := skillCLILookPath
+	t.Cleanup(func() { skillCLILookPath = oldLookPath })
+	skillCLILookPath = func(name string) (string, error) {
+		if name == "claude" || name == "codex" {
+			return name, nil
+		}
+		return "", exec.ErrNotFound
+	}
+
+	prompt := &fakeSkillPromptRunner{result: skillPromptResult{
+		Language:    skillLanguageEN,
+		Scope:       skillInstallProject,
+		PlatformIDs: []string{"claude", "codex"},
+	}}
+	restorePrompt := setSkillPromptRuntimeForTest(prompt, true, "en_US.UTF-8")
+	t.Cleanup(restorePrompt)
+
+	out := captureStdout(t, func() int {
+		return RunCLI([]string{"skill", "install"})
+	})
+	if out.code != 0 {
+		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
+	}
+
+	detected := map[string]bool{}
+	for _, option := range prompt.request.PlatformOptions {
+		if option.Detected && option.Selected {
+			detected[option.ID] = true
+		}
+	}
+	if !detected["claude"] || !detected["codex"] {
+		t.Fatalf("detected options = %v, want claude and codex", detected)
 	}
 }
 
@@ -864,6 +915,71 @@ func TestRunCLISkillInstallYesUsesDetectedPlatforms(t *testing.T) {
 	wantPlatforms := []string{"claude", "codex"}
 	if !reflect.DeepEqual(gotPlatforms, wantPlatforms) {
 		t.Fatalf("installed platforms = %v, want %v", gotPlatforms, wantPlatforms)
+	}
+}
+
+func TestResolveNonInteractiveSkillSelectionUsesGlobalDetection(t *testing.T) {
+	projectDir := t.TempDir()
+	homeDir := t.TempDir()
+	for _, marker := range []string{".claude", ".codex"} {
+		if err := os.MkdirAll(filepath.Join(homeDir, marker), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	oldWorkingDir := skillCLIWorkingDir
+	oldHomeDir := skillCLIHomeDir
+	oldLookPath := skillCLILookPath
+	t.Cleanup(func() {
+		skillCLIWorkingDir = oldWorkingDir
+		skillCLIHomeDir = oldHomeDir
+		skillCLILookPath = oldLookPath
+	})
+	skillCLIWorkingDir = func() (string, error) { return projectDir, nil }
+	skillCLIHomeDir = func() (string, error) { return homeDir, nil }
+	skillCLILookPath = func(string) (string, error) { return "", exec.ErrNotFound }
+
+	result, exitCode, err := resolveNonInteractiveSkillSelection(
+		skillLanguageEN,
+		skillInstallProject,
+	)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("exit=%d err=%v", exitCode, err)
+	}
+	if want := []string{"claude", "codex"}; !reflect.DeepEqual(result.PlatformIDs, want) {
+		t.Fatalf("selected platforms = %v, want %v", result.PlatformIDs, want)
+	}
+}
+
+func TestSkillCLIDetectionIgnoresHomeLookupFailure(t *testing.T) {
+	oldWorkingDir := skillCLIWorkingDir
+	oldHomeDir := skillCLIHomeDir
+	oldLookPath := skillCLILookPath
+	t.Cleanup(func() {
+		skillCLIWorkingDir = oldWorkingDir
+		skillCLIHomeDir = oldHomeDir
+		skillCLILookPath = oldLookPath
+	})
+	skillCLIWorkingDir = func() (string, error) { return t.TempDir(), nil }
+	skillCLIHomeDir = func() (string, error) {
+		return "", errors.New("injected home lookup failure")
+	}
+	skillCLILookPath = func(name string) (string, error) {
+		if name == "codex" {
+			return "/bin/codex", nil
+		}
+		return "", exec.ErrNotFound
+	}
+
+	result, exitCode, err := resolveNonInteractiveSkillSelection(
+		skillLanguageEN,
+		skillInstallProject,
+	)
+	if err != nil || exitCode != 0 {
+		t.Fatalf("exit=%d err=%v", exitCode, err)
+	}
+	if want := []string{"codex"}; !reflect.DeepEqual(result.PlatformIDs, want) {
+		t.Fatalf("selected platforms = %v, want %v", result.PlatformIDs, want)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -154,6 +155,7 @@ var (
 	skillCLIInstaller    = newSkillInstaller
 	skillCLIWorkingDir   = os.Getwd
 	skillCLIHomeDir      = os.UserHomeDir
+	skillCLILookPath     = exec.LookPath
 	skillCLIPromptRunner = func() skillPromptRunner { return huhSkillPromptRunner{} }
 	skillCLIIsTerminal   = func() bool {
 		return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
@@ -356,7 +358,7 @@ func resolveNonInteractiveSkillSelection(
 	if err != nil {
 		return skillPromptResult{}, 1, err
 	}
-	selected := detectSkillPlatforms(projectDir)
+	selected := detectSkillCLIPlatforms(projectDir)
 	if len(selected) == 0 {
 		selected = allSkillPlatformIDs()
 	}
@@ -383,7 +385,7 @@ func resolveInteractiveSkillSelection(
 		return skillPromptResult{}, 1, fmt.Errorf("resolve current directory: %w", err)
 	}
 
-	detected := detectSkillPlatforms(detectionDir)
+	detected := detectSkillCLIPlatforms(detectionDir)
 	colorEnabled := skillCLIColorEnabled(skillCLILookupEnv)
 	renderSkillBanner(os.Stdout, colorEnabled)
 	result, err := skillCLIPromptRunner().Run(&skillPromptRequest{
@@ -406,6 +408,11 @@ func resolveInteractiveSkillSelection(
 
 	result.PlatformIDs, err = validateSkillPlatformIDs(result.PlatformIDs)
 	return result, errorExitCode(err, 2), err
+}
+
+func detectSkillCLIPlatforms(projectDir string) []string {
+	homeDir, _ := skillCLIHomeDir()
+	return detectSkillPlatforms(projectDir, homeDir, skillCLILookPath)
 }
 
 func skillCLIColorEnabled(lookupEnv func(string) (string, bool)) bool {
@@ -505,8 +512,8 @@ func parseSkillCLIOptions(args []string) (skillCLIOptions, error) {
 
 func allSkillPlatformIDs() []string {
 	all := make([]string, 0, len(skillPlatforms))
-	for _, platform := range skillPlatforms {
-		all = append(all, platform.ID)
+	for index := range skillPlatforms {
+		all = append(all, skillPlatforms[index].ID)
 	}
 	return all
 }
