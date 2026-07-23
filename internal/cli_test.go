@@ -392,8 +392,9 @@ func TestRunCLISkillInstallTUI(t *testing.T) {
 	if !prompt.request.ColorEnabled {
 		t.Fatal("prompt color is disabled for a supported terminal")
 	}
-	if !strings.Contains(out.out, "ORCA//DUB") {
-		t.Fatalf("stdout lacks banner:\n%s", out.out)
+	if !strings.Contains(out.out, skillBannerBlue) ||
+		!strings.Contains(out.out, skillBannerCyan) {
+		t.Fatalf("stdout lacks Orca banner colors:\n%s", out.out)
 	}
 	if _, err := os.Stat(filepath.Join(projectDir, ".agents", "skills", "orcadub", "SKILL.md")); err != nil {
 		t.Fatalf("Codex Skill was not installed: %v", err)
@@ -479,7 +480,7 @@ func TestRunCLISkillInstallTUIHonorsNoColor(t *testing.T) {
 	if out.code != 0 {
 		t.Fatalf("code=%d stdout=%q stderr=%q", out.code, out.out, out.err)
 	}
-	if !strings.Contains(out.out, "ORCA//DUB") || strings.Contains(out.out, "\x1b[") {
+	if !strings.Contains(out.out, "████") || strings.Contains(out.out, "\x1b[") {
 		t.Fatalf("NO_COLOR banner output = %q", out.out)
 	}
 	if prompt.request.ColorEnabled {
