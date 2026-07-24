@@ -21,7 +21,7 @@ description: Test OrcaDub Skill.
 # Dub video
 `
 
-func TestSkillPlatformsMatchCometCatalog(t *testing.T) {
+func TestSkillPlatformsMatchSupportedCatalog(t *testing.T) {
 	t.Parallel()
 
 	wantIDs := []string{
@@ -58,6 +58,9 @@ func TestSkillPlatformsMatchCometCatalog(t *testing.T) {
 		"trae-cn",
 		"zcode",
 		"mimocode",
+		"hermes",
+		"openclaw",
+		"command-code",
 	}
 	gotIDs := make([]string, 0, len(skillPlatforms))
 	for _, platform := range skillPlatforms {
@@ -79,6 +82,9 @@ func TestSkillPlatformsMatchCometCatalog(t *testing.T) {
 		{id: "antigravity", projectRoot: ".agents", globalRoot: ".gemini/antigravity"},
 		{id: "antigravity2", projectRoot: ".agents", globalRoot: ".gemini/config"},
 		{id: "mimocode", projectRoot: ".mimocode", globalRoot: ".config/mimocode"},
+		{id: "hermes", projectRoot: ".hermes", globalRoot: ".hermes"},
+		{id: "openclaw", projectRoot: ".", globalRoot: ".openclaw"},
+		{id: "command-code", projectRoot: ".commandcode", globalRoot: ".commandcode"},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -115,7 +121,13 @@ func TestDetectSkillPlatformsUsesPlatformMarkers(t *testing.T) {
 	t.Parallel()
 
 	projectDir := t.TempDir()
-	for _, marker := range []string{".claude", ".codex", ".github/copilot-instructions.md"} {
+	for _, marker := range []string{
+		".claude",
+		".codex",
+		".github/copilot-instructions.md",
+		".hermes",
+		".commandcode",
+	} {
 		path := filepath.Join(projectDir, filepath.FromSlash(marker))
 		if filepath.Ext(path) != "" {
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -134,7 +146,7 @@ func TestDetectSkillPlatformsUsesPlatformMarkers(t *testing.T) {
 	got := detectSkillPlatforms(projectDir, t.TempDir(), func(string) (string, error) {
 		return "", exec.ErrNotFound
 	})
-	want := []string{"claude", "codex", "github-copilot"}
+	want := []string{"claude", "codex", "github-copilot", "hermes", "command-code"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("detected platforms = %v, want %v", got, want)
 	}
@@ -145,7 +157,7 @@ func TestDetectSkillPlatformsUsesGlobalMarkers(t *testing.T) {
 
 	projectDir := t.TempDir()
 	homeDir := t.TempDir()
-	for _, marker := range []string{".claude", ".codex"} {
+	for _, marker := range []string{".claude", ".codex", ".hermes", ".openclaw", ".commandcode"} {
 		if err := os.MkdirAll(filepath.Join(homeDir, marker), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -154,7 +166,7 @@ func TestDetectSkillPlatformsUsesGlobalMarkers(t *testing.T) {
 	got := detectSkillPlatforms(projectDir, homeDir, func(string) (string, error) {
 		return "", exec.ErrNotFound
 	})
-	if want := []string{"claude", "codex"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"claude", "codex", "hermes", "openclaw", "command-code"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("detected platforms = %v, want %v", got, want)
 	}
 }
@@ -162,15 +174,39 @@ func TestDetectSkillPlatformsUsesGlobalMarkers(t *testing.T) {
 func TestDetectSkillPlatformsUsesExecutables(t *testing.T) {
 	t.Parallel()
 
-	installed := map[string]bool{"claude": true, "codex": true}
+	installed := map[string]bool{
+		"claude":   true,
+		"codex":    true,
+		"hermes":   true,
+		"openclaw": true,
+		"cmd":      true,
+	}
 	got := detectSkillPlatforms(t.TempDir(), t.TempDir(), func(name string) (string, error) {
 		if installed[name] {
 			return name, nil
 		}
 		return "", exec.ErrNotFound
 	})
-	if want := []string{"claude", "codex"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"claude", "codex", "hermes", "openclaw"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("detected platforms = %v, want %v", got, want)
+	}
+}
+
+func TestDetectSkillPlatformsDoesNotInferOpenClawFromWorkspaceRoot(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, "skills"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := detectSkillPlatforms(projectDir, t.TempDir(), func(string) (string, error) {
+		return "", exec.ErrNotFound
+	})
+	for _, id := range got {
+		if id == "openclaw" {
+			t.Fatalf("generic workspace skills directory falsely detected %q", id)
+		}
 	}
 }
 
@@ -273,6 +309,75 @@ func TestResolveSkillTargetsUsesGlobalRoot(t *testing.T) {
 	wantPath := filepath.Join(homeDir, ".config", "opencode", "skills", "orcadub", "SKILL.md")
 	if len(targets) != 1 || targets[0].Path != wantPath {
 		t.Fatalf("targets = %#v, want one target at %q", targets, wantPath)
+	}
+}
+
+func TestResolveSkillTargetsUsesAdditionalPlatformRoots(t *testing.T) {
+	t.Parallel()
+
+	projectDir := t.TempDir()
+	homeDir := t.TempDir()
+	cases := []struct {
+		name     string
+		platform string
+		scope    skillInstallScope
+		wantPath string
+	}{
+		{
+			name:     "Hermes project",
+			platform: "hermes",
+			scope:    skillInstallProject,
+			wantPath: filepath.Join(projectDir, ".hermes", "skills", "orcadub", "SKILL.md"),
+		},
+		{
+			name:     "Hermes global",
+			platform: "hermes",
+			scope:    skillInstallGlobal,
+			wantPath: filepath.Join(homeDir, ".hermes", "skills", "orcadub", "SKILL.md"),
+		},
+		{
+			name:     "OpenClaw project",
+			platform: "openclaw",
+			scope:    skillInstallProject,
+			wantPath: filepath.Join(projectDir, "skills", "orcadub", "SKILL.md"),
+		},
+		{
+			name:     "OpenClaw global",
+			platform: "openclaw",
+			scope:    skillInstallGlobal,
+			wantPath: filepath.Join(homeDir, ".openclaw", "skills", "orcadub", "SKILL.md"),
+		},
+		{
+			name:     "Command Code project",
+			platform: "command-code",
+			scope:    skillInstallProject,
+			wantPath: filepath.Join(projectDir, ".commandcode", "skills", "orcadub", "SKILL.md"),
+		},
+		{
+			name:     "Command Code global",
+			platform: "command-code",
+			scope:    skillInstallGlobal,
+			wantPath: filepath.Join(homeDir, ".commandcode", "skills", "orcadub", "SKILL.md"),
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			targets, err := resolveSkillTargets(
+				[]string{tc.platform},
+				tc.scope,
+				projectDir,
+				homeDir,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(targets) != 1 || targets[0].Path != tc.wantPath {
+				t.Fatalf("targets = %#v, want one target at %q", targets, tc.wantPath)
+			}
+		})
 	}
 }
 
