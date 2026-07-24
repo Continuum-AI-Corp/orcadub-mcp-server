@@ -35,7 +35,7 @@ npx -y @orcadub/cli download --video-id <id> --dest ./out.mp4
 ```
 
 Optional `create` parameters use repeatable `--opt key=val` (e.g.
-`--opt watermark=false --opt resolution=1080p --opt glossary.OrcaDub=虎鲸配音`).
+`--opt watermark=false --opt resolution=1080p --opt glossary.OrcaDub=OrcaDub`).
 Results print as JSON on stdout; errors go to stderr with a non-zero exit.
 
 With no subcommand the same binary runs as an MCP stdio server (`npx -y @orcadub/cli`).
@@ -52,7 +52,8 @@ npx -y @orcadub/cli skill install
 
 The guided installer opens with a balanced 8-row `ORCADUB` wordmark, then lets you:
 
-- Choose `简体中文` or `English`; the system locale selects the initial default.
+- Choose the Simplified Chinese or English interface; the system locale
+  selects the initial default.
 - Choose Project or Global installation with the arrow keys.
 - Select one or more platforms from a checkbox list. Detected platforms appear
   first and are already checked.
@@ -213,7 +214,7 @@ A typical agent conversation:
 >
 > **Agent:** *(dub_create with source_lang=en, target_lang=zh, url=…)* → job queued → *(polls dub_get every ~30 s)* → completed → *(asks: download locally? default: current directory)* → *(dub_download)* → "Saved to ./My-Video-zh.mp4 — re-download any time: `curl -H "Authorization: Bearer sk-orca-..." <content_url> -o out.mp4`"
 
-Direct tool usage from an agent prompt works too — for example `dub_create {"source_lang":"en","target_lang":"zh","url":"https://…","glossary":{"OrcaRT":"鲸鸣实时"}}`.
+Direct tool usage from an agent prompt works too — for example `dub_create {"source_lang":"en","target_lang":"zh","url":"https://…","glossary":{"OrcaRT":"OrcaDub Realtime"}}`.
 
 ## Troubleshooting
 
