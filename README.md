@@ -59,9 +59,10 @@ The guided installer opens with a balanced 8-row `ORCADUB` wordmark, then lets y
 - Press `Space` to toggle, `/` to filter, `a` to select all, `n` to clear all,
   and `Enter` to confirm.
 
-It supports all 33 platforms in its Comet-compatible catalog. Use
-`--lang zh` or `--lang en` to skip the language screen. For unattended or
-agent-driven setup, select targets explicitly:
+It supports 36 platforms: the 33-platform Comet-compatible catalog plus
+Hermes, OpenClaw, and Command Code. Use `--lang zh` or `--lang en` to skip the
+language screen. For unattended or agent-driven setup, select targets
+explicitly:
 
 ```bash
 # Current project

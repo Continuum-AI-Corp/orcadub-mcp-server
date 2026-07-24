@@ -75,9 +75,9 @@ type skillInstaller struct {
 	sourceURL string
 }
 
-// skillPlatforms mirrors Comet's platform catalog and Skill roots. A platform
-// without a special global root uses the same relative root under the user's
-// home directory.
+// skillPlatforms starts with Comet's platform catalog and adds other Agent
+// Skills hosts. A platform without a special global root uses the same
+// relative root under the user's home directory.
 var skillPlatforms = []skillPlatform{
 	{
 		ID:                   "claude",
@@ -159,6 +159,30 @@ var skillPlatforms = []skillPlatform{
 		Name:        "MimoCode",
 		ProjectRoot: ".mimocode",
 		GlobalRoot:  ".config/mimocode",
+	},
+	{
+		ID:                   "hermes",
+		Name:                 "Hermes",
+		ProjectRoot:          ".hermes",
+		GlobalRoot:           ".hermes",
+		GlobalDetectionPaths: []string{".hermes"},
+		Executables:          []string{"hermes"},
+	},
+	{
+		ID:                   "openclaw",
+		Name:                 "OpenClaw",
+		ProjectRoot:          ".",
+		GlobalRoot:           ".openclaw",
+		DetectionPaths:       []string{},
+		GlobalDetectionPaths: []string{".openclaw"},
+		Executables:          []string{"openclaw"},
+	},
+	{
+		ID:                   "command-code",
+		Name:                 "Command Code",
+		ProjectRoot:          ".commandcode",
+		GlobalRoot:           ".commandcode",
+		GlobalDetectionPaths: []string{".commandcode"},
 	},
 }
 
