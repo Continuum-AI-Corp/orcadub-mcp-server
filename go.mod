@@ -1,6 +1,6 @@
 module github.com/Continuum-AI-Corp/orcadub-mcp-server
 
-go 1.25.8
+go 1.26.0
 
 require (
 	charm.land/bubbles/v2 v2.0.0
@@ -8,7 +8,7 @@ require (
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.1
 	github.com/modelcontextprotocol/go-sdk v1.6.1
-	golang.org/x/term v0.45.0
+	golang.org/x/term v0.46.0
 )
 
 require (
@@ -37,5 +37,5 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 )
